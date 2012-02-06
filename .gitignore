@@ -1,0 +1,11 @@
+target/
+.apt_generated/
+.settings/
+war/WEB-INF/appengine-generated/
+war/WEB-INF/classes
+war/WEB-INF/lib/appengine-*
+.project
+.factorypath
+.classpath
+.idea/
+www-test/
