@@ -11,12 +11,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
+import org.slim3.memcache.Memcache;
+import org.slim3.memcache.MemcacheDelegate;
 
+import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.api.datastore.TransactionOptions;
+import com.google.appengine.api.memcache.Stats;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.apphosting.api.ApiProxy;
@@ -141,6 +145,27 @@ public class ProofOfConceptTest {
 		tx.commit();
 	}
 
+	@Test
+	public void Namespace付put() {
+		NamespaceManager.set("ns");
+		Datastore.put(new SampleModel());
+	}
+
+	@Test
+	public void query() {
+		final SampleModelMeta meta = SampleModelMeta.get();
+		Datastore.query(meta).filter(meta.test.equal("test"))
+				.sort(meta.key.asc).asKeyList();
+	}
+
+	@Test
+	public void queryとNamespace() {
+		NamespaceManager.set("ns");
+		final SampleModelMeta meta = SampleModelMeta.get();
+		Datastore.query(meta).filter(meta.test.equal("test"))
+				.sort(meta.key.asc).asKeyList();
+	}
+
 	LocalServiceTestHelper helper;
 	SampleDelegate newDelegate;
 
@@ -241,6 +266,15 @@ public class ProofOfConceptTest {
 				requestPb.mergeFrom(request);
 
 				logger.info(requestPb.toString());
+			} else if ("datastore_v3".equals(packageName)
+					&& "RunQuery".equals(methodName)) {
+
+				{
+					DatastorePb.Query requestPb = new DatastorePb.Query();
+					requestPb.mergeFrom(request);
+
+					logger.info(requestPb.toString());
+				}
 			} else if ("datastore_v3".equals(packageName)
 					&& "Commit".equals(methodName)) {
 
