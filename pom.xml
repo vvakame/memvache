@@ -2,8 +2,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.vvakame</groupId>
-	<artifactId>easy-memcache</artifactId>
-	<packaging>war</packaging>
+	<artifactId>memvache</artifactId>
+	<packaging>jar</packaging>
 	<version>1.0-SNAPSHOT</version>
 
 	<properties>
@@ -106,7 +106,6 @@
 		</dependency>
 	</dependencies>
 	<build>
-		<finalName>slim3-maven</finalName>
 		<outputDirectory>${generated.war}/WEB-INF/classes</outputDirectory>
 		<pluginManagement>
 			<plugins>
@@ -167,6 +166,7 @@
 						<phase>process-sources</phase>
 						<goals>
 							<goal>process</goal>
+							<goal>test-process</goal>
 						</goals>
 					</execution>
 				</executions>

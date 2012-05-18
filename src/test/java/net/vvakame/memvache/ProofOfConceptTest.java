@@ -1,4 +1,4 @@
-package net.vvakame.easymemcache;
+package net.vvakame.memvache;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
-import net.vvakame.easymemcache.meta.SampleModelMeta;
-import net.vvakame.easymemcache.model.SampleModel;
+import net.vvakame.memvache.meta.SampleModelMeta;
+import net.vvakame.memvache.model.SampleModel;
 
 import org.junit.After;
 import org.junit.Before;

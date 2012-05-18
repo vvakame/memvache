@@ -15,6 +15,15 @@
         <param-value>UTF-8</param-value>
     </context-param>
 
+  	<filter>
+		<filter-name>apicount</filter-name>
+		<filter-class>net.vvakame.appengine.reducepricing.controller.ApiCountFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>apicount</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
     <filter>
         <filter-name>HotReloadingFilter</filter-name>
         <filter-class>org.slim3.controller.HotReloadingFilter</filter-class>

@@ -1,4 +1,4 @@
-package net.vvakame.easymemcache.model;
+package net.vvakame.memvache.model;
 
 import org.slim3.datastore.Attribute;
 import org.slim3.datastore.Model;
