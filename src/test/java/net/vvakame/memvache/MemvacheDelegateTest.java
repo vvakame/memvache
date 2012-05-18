@@ -35,8 +35,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
-		long count = Memcache.get("@test");
-		assertThat("カウンタが0→1", count, is(1L));
+		assertThat("カウンタが0→1", (Long) Memcache.get("@test"), is(1L));
 	}
 
 	@Test
@@ -52,8 +51,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
-		long count = Memcache.get("hoge@test");
-		assertThat("カウンタが0→1", count, is(1L));
+		assertThat("カウンタが0→1", (Long) Memcache.get("hoge@test"), is(1L));
 	}
 
 	@Test
@@ -69,8 +67,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
-		long count = Memcache.get("@test");
-		assertThat("カウンタが0→1", count, is(1L));
+		assertThat("カウンタが0→1", (Long) Memcache.get("@test"), is(1L));
 	}
 
 	@Test
