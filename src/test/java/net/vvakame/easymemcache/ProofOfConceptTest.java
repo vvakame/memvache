@@ -1,5 +1,8 @@
 package net.vvakame.easymemcache;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
+
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
@@ -9,10 +12,10 @@ import net.vvakame.easymemcache.model.SampleModel;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
 import org.slim3.memcache.Memcache;
-import org.slim3.memcache.MemcacheDelegate;
 
 import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.datastore.DatastoreService;
@@ -20,7 +23,7 @@ import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.api.datastore.TransactionOptions;
-import com.google.appengine.api.memcache.Stats;
+import com.google.appengine.api.memcache.MemcacheServicePb;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.apphosting.api.ApiProxy;
@@ -166,6 +169,26 @@ public class ProofOfConceptTest {
 				.sort(meta.key.asc).asKeyList();
 	}
 
+	@Test
+	@Ignore("全部消える")
+	public void memcacheのNamespace別削除の実験() {
+		Memcache.put("test1", "test1");
+
+		NamespaceManager.set("2");
+		Memcache.put("test2", "test2");
+
+		NamespaceManager.set("3");
+		Memcache.put("test3", "test3");
+
+		NamespaceManager.set("2");
+		Memcache.cleanAll();
+
+		NamespaceManager.set("3");
+		Object obj = Memcache.get("test3");
+
+		assertThat(obj, notNullValue());
+	}
+
 	LocalServiceTestHelper helper;
 	SampleDelegate newDelegate;
 
@@ -289,6 +312,36 @@ public class ProofOfConceptTest {
 				txPb.mergeFrom(request);
 
 				logger.info(txPb.toString());
+			} else if ("memcache".equals(packageName)
+					&& "Set".equals(methodName)) {
+
+				try {
+					MemcacheServicePb.MemcacheSetRequest pb = MemcacheServicePb.MemcacheSetRequest
+							.parseFrom(request);
+					logger.info(pb.toString());
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else if ("memcache".equals(packageName)
+					&& "Get".equals(methodName)) {
+
+				try {
+					MemcacheServicePb.MemcacheGetRequest pb = MemcacheServicePb.MemcacheGetRequest
+							.parseFrom(request);
+					logger.info(pb.toString());
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else if ("memcache".equals(packageName)
+					&& "FlushAll".equals(methodName)) {
+
+				try {
+					MemcacheServicePb.MemcacheFlushRequest pb = MemcacheServicePb.MemcacheFlushRequest
+							.parseFrom(request);
+					logger.info(pb.toString());
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
 			}
 		}
 	}
