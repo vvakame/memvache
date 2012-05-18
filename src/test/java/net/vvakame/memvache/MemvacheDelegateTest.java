@@ -1,6 +1,6 @@
 package net.vvakame.memvache;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
 import java.util.List;
@@ -22,6 +22,13 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 	RpcCounterDelegate counter;
 	DebugDelegate debugDelegate;
 	MemvacheDelegate delegate;
+
+	@Test
+	public void readConfigure() throws Exception {
+		assertThat("default 300, 読めてたら100", MemvacheDelegate.expireSecond,
+				is(100));
+		assertThat(MemvacheDelegate.ignoreKindSet.size(), is(2));
+	}
 
 	@Test
 	public void put_singleEntity_noNameSpace() throws Exception {
@@ -194,6 +201,64 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		}
 		assertThat("RunQuery実行増えてない",
 				counter.countMap.get("datastore_v3@RunQuery"), is(2));
+	}
+
+	@Test
+	public void ignoreKind() {
+		// ignore1, ignore2 が除外対象
+
+		{
+			Entity entity = new Entity("ignore1");
+			Datastore.put(entity);
+		}
+		assertThat("無視される", Memcache.statistics().getItemCount(), is(0L));
+
+		{
+			Entity entity = new Entity("test");
+			Datastore.put(entity);
+		}
+		assertThat("カウント更新+1回", Memcache.statistics().getItemCount(), is(1L));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(1));
+
+		}
+		assertThat("キャッシュなし+1回", Memcache.statistics().getMissCount(), is(1L));
+		assertThat("RunQuery実行", counter.countMap.get("datastore_v3@RunQuery"),
+				is(1));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(1));
+
+		}
+		assertThat("キャッシュ利用", counter.countMap.get("datastore_v3@RunQuery"),
+				is(1));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("ignore1")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(1));
+
+		}
+		assertThat("RunQuery実行", counter.countMap.get("datastore_v3@RunQuery"),
+				is(2));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("ignore1")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(1));
+
+		}
+		assertThat("キャッシュ無視で再実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(3));
 	}
 
 	@Override

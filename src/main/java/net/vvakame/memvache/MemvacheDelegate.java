@@ -1,7 +1,11 @@
 package net.vvakame.memvache;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -9,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.slim3.util.StringUtil;
 
 import net.vvakame.memvache.internal.Pair;
 import net.vvakame.memvache.internal.RpcVisitor;
@@ -35,13 +41,38 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	static final Logger logger = Logger.getLogger(MemvacheDelegate.class
 			.getName());
 
+	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
+
+	static int expireSecond = 300;
+
+	static Set<String> ignoreKindSet = Collections.emptySet();
+
 	boolean enabled = true;
 	final ApiProxy.Delegate<Environment> parent;
 
-	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
-
 	public static MemvacheDelegate get() {
 		return localThis.get();
+	}
+
+	static {
+		Properties properties = new Properties();
+		try {
+			properties.load(MemvacheDelegate.class
+					.getResourceAsStream("/memvache.properties"));
+
+			String expireSecondStr = properties.getProperty("expireSecond");
+			if (!StringUtil.isEmpty(expireSecondStr)) {
+				expireSecond = Integer.parseInt(expireSecondStr);
+			}
+
+			String ignoreKindStr = properties.getProperty("ignoreKind");
+			if (!StringUtil.isEmpty(ignoreKindStr)) {
+				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr
+						.split(",")));
+			}
+		} catch (IOException e) {
+			logger.log(Level.INFO, "", e);
+		}
 	}
 
 	/**
@@ -161,10 +192,15 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				final String namespace = key.getNameSpace();
 				final Path path = key.getPath();
 				for (Element element : path.mutableElements()) {
+					final String kind = element.getType();
+
+					if (ignoreKindSet.contains(kind)) {
+						continue;
+					}
 
 					StringBuilder builder = new StringBuilder();
 					builder.append(namespace).append("@");
-					builder.append(element.getType());
+					builder.append(kind);
 
 					memcacheKeys.add(builder.toString());
 				}
@@ -190,6 +226,9 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			final String namespace = pb.getNameSpace();
 			final String kind = pb.getKind();
+			if (ignoreKindSet.contains(kind)) {
+				return null;
+			}
 
 			StringBuilder builder = new StringBuilder();
 			builder.append(namespace).append("@");
@@ -222,6 +261,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			final byte[] requestBytes = pair.first;
 			final Future<byte[]> future = pair.second;
+
+			Query query = to_datastore_v3_RunQuery(requestBytes);
+			final String kind = query.getKind();
+			if (ignoreKindSet.contains(kind)) {
+				return future;
+			}
 
 			return new Future<byte[]>() {
 				public void processDate(byte[] data) {
@@ -294,6 +339,10 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		final String namespace = requestPb.getNameSpace();
 		final String kind = requestPb.getKind();
 
+		if (ignoreKindSet.contains(kind)) {
+			return;
+		}
+
 		StringBuilder builder = new StringBuilder();
 		builder.append(namespace).append("@");
 		builder.append(kind);
@@ -311,7 +360,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		builder.append("@").append(counter);
 
 		// 最大5分しかキャッシュしないようにする
-		Expiration expiration = Expiration.byDeltaSeconds(300);
+		Expiration expiration = Expiration.byDeltaSeconds(expireSecond);
 		memcache.put(builder.toString(), data, expiration);
 	}
 
