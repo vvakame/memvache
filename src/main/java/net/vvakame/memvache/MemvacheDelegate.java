@@ -10,6 +10,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.vvakame.memvache.internal.Pair;
+import net.vvakame.memvache.internal.RpcVisitor;
+
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.apphosting.api.ApiProxy;
@@ -19,6 +22,8 @@ import com.google.apphosting.api.ApiProxy.Delegate;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.apphosting.api.ApiProxy.LogRecord;
 import com.google.apphosting.api.DatastorePb;
+import com.google.apphosting.api.DatastorePb.PutRequest;
+import com.google.apphosting.api.DatastorePb.Query;
 import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
 import com.google.storage.onestore.v3.OnestoreEntity.Path;
 import com.google.storage.onestore.v3.OnestoreEntity.Path.Element;
@@ -77,35 +82,49 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	public Future<byte[]> makeAsyncCall(Environment env, String service,
 			String method, byte[] requestBytes, ApiConfig config) {
 
-		final byte[] data = analysis(service, method, requestBytes);
+		final byte[] data = new PreProcess().visit(service, method,
+				requestBytes);
 		if (data != null) {
 			return createFuture(data);
 		}
 
 		Future<byte[]> future = getParent().makeAsyncCall(env, service, method,
 				requestBytes, config);
+		Future<byte[]> dummy = new PostProcessAsync().visit(service, method,
+				Pair.create(requestBytes, future));
 
-		return postProcess(service, method, requestBytes, future);
+		return dummy != null ? dummy : future;
 	}
 
 	@Override
 	public byte[] makeSyncCall(Environment env, String service, String method,
 			byte[] requestBytes) throws ApiProxyException {
-		return getParent().makeSyncCall(env, service, method, requestBytes);
+
+		final byte[] data = new PreProcess().visit(service, method,
+				requestBytes);
+		if (data != null) {
+			return data;
+		}
+
+		byte[] result = getParent().makeSyncCall(env, service, method,
+				requestBytes);
+
+		new PostProcessSync().visit(service, method,
+				Pair.create(requestBytes, result));
+
+		return result;
 	}
 
-	byte[] analysis(String service, String method, byte[] requestBytes) {
-		logger.log(Level.INFO, "service=" + service + ", method=" + method);
+	static class PreProcess extends RpcVisitor<byte[], byte[]> {
 
-		if ("datastore_v3".equals(service) && "Put".equals(method)) {
-
-			DatastorePb.PutRequest requestPb = new DatastorePb.PutRequest();
-			requestPb.mergeFrom(requestBytes);
+		@Override
+		public byte[] datastore_v3_Put(byte[] requestBytes) {
+			final PutRequest pb = to_datastore_v3_Put(requestBytes);
 
 			final MemcacheService memcache = getMemcache();
 			final Set<String> memcacheKeys = new HashSet<String>();
 
-			for (EntityProto entity : requestPb.entitys()) {
+			for (EntityProto entity : pb.entitys()) {
 				final Reference key = entity.getMutableKey();
 				final String namespace = key.getNameSpace();
 				final Path path = key.getPath();
@@ -127,16 +146,18 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 					memcache.increment(key, 1, 0L);
 				}
 			}
-			return null;
 
-		} else if ("datastore_v3".equals(service) && "RunQuery".equals(method)) {
-			DatastorePb.Query requestPb = new DatastorePb.Query();
-			requestPb.mergeFrom(requestBytes);
+			return null;
+		}
+
+		@Override
+		public byte[] datastore_v3_RunQuery(byte[] requestBytes) {
+			final Query pb = to_datastore_v3_RunQuery(requestBytes);
 
 			final MemcacheService memcache = getMemcache();
 
-			final String namespace = requestPb.getNameSpace();
-			final String kind = requestPb.getKind();
+			final String namespace = pb.getNameSpace();
+			final String kind = pb.getKind();
 
 			StringBuilder builder = new StringBuilder();
 			builder.append(namespace).append("@");
@@ -151,52 +172,31 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 					counter = (Long) obj;
 				}
 			}
-			builder.append("@").append(requestPb.hashCode());
+			builder.append("@").append(pb.hashCode());
 			builder.append("@").append(counter);
 
 			logger.log(Level.INFO, builder.toString());
 
 			return (byte[]) memcache.get(builder.toString());
 		}
-
-		return null;
 	}
 
-	Future<byte[]> postProcess(final String service, final String method,
-			final byte[] requestBytes, final Future<byte[]> future) {
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method)) {
-			return new Future<byte[]>() {
+	static class PostProcessAsync extends
+			RpcVisitor<Pair<byte[], Future<byte[]>>, Future<byte[]>> {
 
+		@Override
+		public Future<byte[]> datastore_v3_RunQuery(
+				Pair<byte[], Future<byte[]>> pair) {
+
+			final byte[] requestBytes = pair.first;
+			final Future<byte[]> future = pair.second;
+
+			return new Future<byte[]>() {
 				public void processDate(byte[] data) {
 					if (data == null) {
 						return;
 					}
-
-					DatastorePb.Query requestPb = new DatastorePb.Query();
-					requestPb.mergeFrom(requestBytes);
-
-					final MemcacheService memcache = getMemcache();
-
-					final String namespace = requestPb.getNameSpace();
-					final String kind = requestPb.getKind();
-
-					StringBuilder builder = new StringBuilder();
-					builder.append(namespace).append("@");
-					builder.append(kind);
-
-					final long counter;
-					{
-						Object obj = memcache.get(builder.toString());
-						if (obj == null) {
-							counter = 0;
-						} else {
-							counter = (Long) obj;
-						}
-					}
-					builder.append("@").append(requestPb.hashCode());
-					builder.append("@").append(counter);
-
-					memcache.put(builder.toString(), data);
+					putQueryCache(requestBytes, data);
 				}
 
 				@Override
@@ -232,12 +232,53 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				}
 			};
 		}
-
-		return future;
 	}
 
-	MemcacheService getMemcache() {
+	static class PostProcessSync extends
+			RpcVisitor<Pair<byte[], byte[]>, byte[]> {
+
+		@Override
+		public byte[] datastore_v3_RunQuery(Pair<byte[], byte[]> pair) {
+
+			final byte[] requestBytes = pair.first;
+			final byte[] data = pair.second;
+
+			putQueryCache(requestBytes, data);
+
+			return data;
+		}
+	}
+
+	static MemcacheService getMemcache() {
 		return MemcacheServiceFactory.getMemcacheService("memvache");
+	}
+
+	static void putQueryCache(final byte[] requestBytes, final byte[] data) {
+		DatastorePb.Query requestPb = new DatastorePb.Query();
+		requestPb.mergeFrom(requestBytes);
+
+		final MemcacheService memcache = getMemcache();
+
+		final String namespace = requestPb.getNameSpace();
+		final String kind = requestPb.getKind();
+
+		StringBuilder builder = new StringBuilder();
+		builder.append(namespace).append("@");
+		builder.append(kind);
+
+		final long counter;
+		{
+			Object obj = memcache.get(builder.toString());
+			if (obj == null) {
+				counter = 0;
+			} else {
+				counter = (Long) obj;
+			}
+		}
+		builder.append("@").append(requestPb.hashCode());
+		builder.append("@").append(counter);
+
+		memcache.put(builder.toString(), data);
 	}
 
 	Future<byte[]> createFuture(final byte[] data) {
