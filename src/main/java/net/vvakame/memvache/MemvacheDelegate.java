@@ -14,8 +14,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.slim3.util.StringUtil;
-
 import net.vvakame.memvache.internal.Pair;
 import net.vvakame.memvache.internal.RpcVisitor;
 
@@ -61,12 +59,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 					.getResourceAsStream("/memvache.properties"));
 
 			String expireSecondStr = properties.getProperty("expireSecond");
-			if (!StringUtil.isEmpty(expireSecondStr)) {
+			if (expireSecondStr != null && !"".equals(expireSecondStr)) {
 				expireSecond = Integer.parseInt(expireSecondStr);
 			}
 
 			String ignoreKindStr = properties.getProperty("ignoreKind");
-			if (!StringUtil.isEmpty(ignoreKindStr)) {
+			if (ignoreKindStr != null && !"".equals(ignoreKindStr)) {
 				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr
 						.split(",")));
 			}
