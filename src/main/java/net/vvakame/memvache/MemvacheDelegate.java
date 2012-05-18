@@ -1,16 +1,26 @@
 package net.vvakame.memvache;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.memcache.MemcacheServicePb;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.ApiConfig;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.Delegate;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.apphosting.api.ApiProxy.LogRecord;
+import com.google.apphosting.api.DatastorePb;
+import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
+import com.google.storage.onestore.v3.OnestoreEntity.Path;
+import com.google.storage.onestore.v3.OnestoreEntity.Path.Element;
+import com.google.storage.onestore.v3.OnestoreEntity.Reference;
 
 public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
@@ -80,7 +90,41 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	void analysis(String service, String method, byte[] requestBytes) {
 		logger.log(Level.INFO, "service=" + service + ", method=" + method);
 
-		
+		if ("datastore_v3".equals(service) && "Put".equals(method)) {
+
+			DatastorePb.PutRequest requestPb = new DatastorePb.PutRequest();
+			requestPb.mergeFrom(requestBytes);
+
+			final MemcacheService memcache = getMemcache();
+			final Set<String> memcacheKeys = new HashSet<String>();
+
+			for (EntityProto entity : requestPb.entitys()) {
+				final Reference key = entity.getMutableKey();
+				final String namespace = key.getNameSpace();
+				final Path path = key.getPath();
+				for (Element element : path.mutableElements()) {
+
+					StringBuilder builder = new StringBuilder();
+					builder.append(namespace).append("@");
+					builder.append(element.getType());
+
+					memcacheKeys.add(builder.toString());
+				}
+			}
+			if (memcacheKeys.size() == 1) {
+				memcache.increment(memcacheKeys.iterator().next(), 1, 0L);
+			} else if (memcacheKeys.size() != 0) {
+				// memcache.incrementAll(memcacheKeys, 1, 0L);
+				// TODO is this broken method? ↑
+				for (String key : memcacheKeys) {
+					memcache.increment(key, 1, 0L);
+				}
+			}
+		}
+	}
+
+	MemcacheService getMemcache() {
+		return MemcacheServiceFactory.getMemcacheService("memvache");
 	}
 
 	/**

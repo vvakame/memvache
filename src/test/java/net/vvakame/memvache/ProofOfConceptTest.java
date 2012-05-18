@@ -190,7 +190,7 @@ public class ProofOfConceptTest {
 	}
 
 	LocalServiceTestHelper helper;
-	SampleDelegate newDelegate;
+	DebugDelegate newDelegate;
 
 	@Before
 	public void setUp() throws Exception {
@@ -202,7 +202,7 @@ public class ProofOfConceptTest {
 
 		@SuppressWarnings("unchecked")
 		Delegate<Environment> delegate = ApiProxy.getDelegate();
-		newDelegate = new SampleDelegate(delegate);
+		newDelegate = new DebugDelegate(delegate);
 		ApiProxy.setDelegate(newDelegate);
 	}
 
@@ -212,11 +212,31 @@ public class ProofOfConceptTest {
 		helper.tearDown();
 	}
 
-	static class SampleDelegate implements Delegate<Environment> {
+	static class DebugDelegate implements Delegate<Environment> {
 
 		Delegate<Environment> parent;
 
-		public SampleDelegate(Delegate<Environment> parent) {
+		public static DebugDelegate install() {
+			@SuppressWarnings("unchecked")
+			Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
+			if (originalDelegate instanceof DebugDelegate == false) {
+				DebugDelegate newDelegate = new DebugDelegate(originalDelegate);
+				ApiProxy.setDelegate(newDelegate);
+				return newDelegate;
+			} else {
+				return (DebugDelegate) originalDelegate;
+			}
+		}
+
+		public static void uninstall(Delegate<Environment> originalDelegate) {
+			ApiProxy.setDelegate(originalDelegate);
+		}
+
+		public void uninstall() {
+			ApiProxy.setDelegate(parent);
+		}
+
+		public DebugDelegate(Delegate<Environment> parent) {
 			this.parent = parent;
 		}
 
@@ -337,6 +357,24 @@ public class ProofOfConceptTest {
 
 				try {
 					MemcacheServicePb.MemcacheFlushRequest pb = MemcacheServicePb.MemcacheFlushRequest
+							.parseFrom(request);
+					logger.info(pb.toString());
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else if ("memcache".equals(packageName)
+					&& "BatchIncrement".equals(methodName)) {
+				try {
+					MemcacheServicePb.MemcacheBatchIncrementRequest pb = MemcacheServicePb.MemcacheBatchIncrementRequest
+							.parseFrom(request);
+					logger.info(pb.toString());
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else if ("memcache".equals(packageName)
+					&& "Increment".equals(methodName)) {
+				try {
+					MemcacheServicePb.MemcacheIncrementRequest pb = MemcacheServicePb.MemcacheIncrementRequest
 							.parseFrom(request);
 					logger.info(pb.toString());
 				} catch (Exception e) {
