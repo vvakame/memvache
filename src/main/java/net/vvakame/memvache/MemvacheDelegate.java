@@ -3,13 +3,15 @@ package net.vvakame.memvache;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
-import com.google.appengine.api.memcache.MemcacheServicePb;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.ApiConfig;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
@@ -75,10 +77,15 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	public Future<byte[]> makeAsyncCall(Environment env, String service,
 			String method, byte[] requestBytes, ApiConfig config) {
 
-		analysis(service, method, requestBytes);
+		final byte[] data = analysis(service, method, requestBytes);
+		if (data != null) {
+			return createFuture(data);
+		}
 
-		return getParent().makeAsyncCall(env, service, method, requestBytes,
-				config);
+		Future<byte[]> future = getParent().makeAsyncCall(env, service, method,
+				requestBytes, config);
+
+		return postProcess(service, method, requestBytes, future);
 	}
 
 	@Override
@@ -87,7 +94,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		return getParent().makeSyncCall(env, service, method, requestBytes);
 	}
 
-	void analysis(String service, String method, byte[] requestBytes) {
+	byte[] analysis(String service, String method, byte[] requestBytes) {
 		logger.log(Level.INFO, "service=" + service + ", method=" + method);
 
 		if ("datastore_v3".equals(service) && "Put".equals(method)) {
@@ -120,11 +127,149 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 					memcache.increment(key, 1, 0L);
 				}
 			}
+			return null;
+
+		} else if ("datastore_v3".equals(service) && "RunQuery".equals(method)) {
+			DatastorePb.Query requestPb = new DatastorePb.Query();
+			requestPb.mergeFrom(requestBytes);
+
+			final MemcacheService memcache = getMemcache();
+
+			final String namespace = requestPb.getNameSpace();
+			final String kind = requestPb.getKind();
+
+			StringBuilder builder = new StringBuilder();
+			builder.append(namespace).append("@");
+			builder.append(kind);
+
+			final long counter;
+			{
+				Object obj = memcache.get(builder.toString());
+				if (obj == null) {
+					counter = 0;
+				} else {
+					counter = (Long) obj;
+				}
+			}
+			builder.append("@").append(requestPb.hashCode());
+			builder.append("@").append(counter);
+
+			logger.log(Level.INFO, builder.toString());
+
+			return (byte[]) memcache.get(builder.toString());
 		}
+
+		return null;
+	}
+
+	Future<byte[]> postProcess(final String service, final String method,
+			final byte[] requestBytes, final Future<byte[]> future) {
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method)) {
+			return new Future<byte[]>() {
+
+				public void processDate(byte[] data) {
+					if (data == null) {
+						return;
+					}
+
+					DatastorePb.Query requestPb = new DatastorePb.Query();
+					requestPb.mergeFrom(requestBytes);
+
+					final MemcacheService memcache = getMemcache();
+
+					final String namespace = requestPb.getNameSpace();
+					final String kind = requestPb.getKind();
+
+					StringBuilder builder = new StringBuilder();
+					builder.append(namespace).append("@");
+					builder.append(kind);
+
+					final long counter;
+					{
+						Object obj = memcache.get(builder.toString());
+						if (obj == null) {
+							counter = 0;
+						} else {
+							counter = (Long) obj;
+						}
+					}
+					builder.append("@").append(requestPb.hashCode());
+					builder.append("@").append(counter);
+
+					memcache.put(builder.toString(), data);
+				}
+
+				@Override
+				public boolean cancel(boolean mayInterruptIfRunning) {
+					return future.cancel(mayInterruptIfRunning);
+				}
+
+				@Override
+				public byte[] get() throws InterruptedException,
+						ExecutionException {
+					byte[] data = future.get();
+					processDate(data);
+					return data;
+				}
+
+				@Override
+				public byte[] get(long timeout, TimeUnit unit)
+						throws InterruptedException, ExecutionException,
+						TimeoutException {
+					byte[] data = future.get(timeout, unit);
+					processDate(data);
+					return data;
+				}
+
+				@Override
+				public boolean isCancelled() {
+					return future.isCancelled();
+				}
+
+				@Override
+				public boolean isDone() {
+					return future.isDone();
+				}
+			};
+		}
+
+		return future;
 	}
 
 	MemcacheService getMemcache() {
 		return MemcacheServiceFactory.getMemcacheService("memvache");
+	}
+
+	Future<byte[]> createFuture(final byte[] data) {
+		return new Future<byte[]>() {
+
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				return false;
+			}
+
+			@Override
+			public byte[] get() throws InterruptedException, ExecutionException {
+				return data;
+			}
+
+			@Override
+			public byte[] get(long timeout, TimeUnit unit)
+					throws InterruptedException, ExecutionException,
+					TimeoutException {
+				return data;
+			}
+
+			@Override
+			public boolean isCancelled() {
+				return false;
+			}
+
+			@Override
+			public boolean isDone() {
+				return true;
+			}
+		};
 	}
 
 	/**

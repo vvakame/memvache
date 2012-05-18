@@ -3,6 +3,8 @@ package net.vvakame.memvache;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.util.List;
+
 import net.vvakame.memvache.ProofOfConceptTest.DebugDelegate;
 
 import org.junit.Test;
@@ -11,7 +13,11 @@ import org.slim3.memcache.Memcache;
 import org.slim3.tester.ControllerTestCase;
 
 import com.google.appengine.api.NamespaceManager;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.FetchOptions;
+import com.google.appengine.api.datastore.Query;
 
 public class MemvacheDelegateTest extends ControllerTestCase {
 
@@ -83,6 +89,48 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		NamespaceManager.set("memvache");
 		assertThat((Long) Memcache.get("@test1"), is(1L));
 		assertThat((Long) Memcache.get("@test2"), is(1L));
+	}
+
+	@Test
+	public void query() {
+		{
+			Entity entityA = new Entity("test");
+			Entity entityB = new Entity("test");
+			Datastore.put(entityA, entityB);
+		}
+		assertThat(Memcache.statistics().getItemCount(), is(1L));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(2));
+
+		}
+		assertThat(Memcache.statistics().getItemCount(), is(2L));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(2));
+
+		}
+		assertThat(Memcache.statistics().getItemCount(), is(2L));
+
+		{
+			Entity entityA = new Entity("test");
+			Entity entityB = new Entity("test");
+			Datastore.put(entityA, entityB);
+		}
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(4));
+
+		}
+		assertThat(Memcache.statistics().getItemCount(), is(3L));
 	}
 
 	@Override
