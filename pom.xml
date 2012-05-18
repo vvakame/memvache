@@ -8,7 +8,7 @@
 
 	<properties>
 		<slim3.version>1.0.15</slim3.version>
-		<appengine.version>1.6.1</appengine.version>
+		<appengine.version>1.6.5</appengine.version>
 		<generated.src>.apt_generated</generated.src>
 		<generated.war>war</generated.war>
 		<eclipse.lib>eclipse.lib</eclipse.lib>
@@ -89,7 +89,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.7</version>
+			<version>4.10</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -113,7 +113,7 @@
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>build-helper-maven-plugin</artifactId>
-					<version>1.4</version>
+					<version>1.7</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
