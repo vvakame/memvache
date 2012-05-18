@@ -3,8 +3,6 @@ package net.vvakame.memvache;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.util.List;
-import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 import net.vvakame.memvache.meta.SampleModelMeta;
@@ -23,16 +21,11 @@ import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.api.datastore.TransactionOptions;
-import com.google.appengine.api.memcache.MemcacheServicePb;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.apphosting.api.ApiProxy;
-import com.google.apphosting.api.ApiProxy.ApiConfig;
-import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.Delegate;
 import com.google.apphosting.api.ApiProxy.Environment;
-import com.google.apphosting.api.ApiProxy.LogRecord;
-import com.google.apphosting.api.DatastorePb;
 
 public class ProofOfConceptTest {
 
@@ -210,177 +203,5 @@ public class ProofOfConceptTest {
 	public void tearDown() {
 		ApiProxy.setDelegate(newDelegate.parent);
 		helper.tearDown();
-	}
-
-	static class DebugDelegate implements Delegate<Environment> {
-
-		Delegate<Environment> parent;
-
-		public static DebugDelegate install() {
-			@SuppressWarnings("unchecked")
-			Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
-			if (originalDelegate instanceof DebugDelegate == false) {
-				DebugDelegate newDelegate = new DebugDelegate(originalDelegate);
-				ApiProxy.setDelegate(newDelegate);
-				return newDelegate;
-			} else {
-				return (DebugDelegate) originalDelegate;
-			}
-		}
-
-		public static void uninstall(Delegate<Environment> originalDelegate) {
-			ApiProxy.setDelegate(originalDelegate);
-		}
-
-		public void uninstall() {
-			ApiProxy.setDelegate(parent);
-		}
-
-		public DebugDelegate(Delegate<Environment> parent) {
-			this.parent = parent;
-		}
-
-		@Override
-		public void flushLogs(Environment env) {
-			parent.flushLogs(env);
-		}
-
-		@Override
-		public List<Thread> getRequestThreads(Environment env) {
-			return parent.getRequestThreads(env);
-		}
-
-		@Override
-		public void log(Environment env, LogRecord log) {
-			parent.log(env, log);
-		}
-
-		@Override
-		public Future<byte[]> makeAsyncCall(Environment env,
-				String packageName, String methodName, byte[] request,
-				ApiConfig apiConfig) {
-
-			process(packageName, methodName, request);
-
-			return parent.makeAsyncCall(env, packageName, methodName, request,
-					apiConfig);
-		}
-
-		@Override
-		public byte[] makeSyncCall(Environment env, String packageName,
-				String methodName, byte[] request) throws ApiProxyException {
-
-			process(packageName, methodName, request);
-
-			return parent.makeSyncCall(env, packageName, methodName, request);
-		}
-
-		static void process(String packageName, String methodName,
-				byte[] request) {
-
-			logger.info("packageName=" + packageName + ", methodName="
-					+ methodName + ", dataSize=" + request.length);
-
-			if ("datastore_v3".equals(packageName)
-					&& "BeginTransaction".equals(methodName)) {
-
-				DatastorePb.BeginTransactionRequest requestPb = new DatastorePb.BeginTransactionRequest();
-				requestPb.mergeFrom(request);
-
-				logger.info(requestPb.toString());
-			} else if ("datastore_v3".equals(packageName)
-					&& "Put".equals(methodName)) {
-
-				DatastorePb.PutRequest requestPb = new DatastorePb.PutRequest();
-				requestPb.mergeFrom(request);
-
-				logger.info(requestPb.toString());
-			} else if ("datastore_v3".equals(packageName)
-					&& "Get".equals(methodName)) {
-
-				DatastorePb.GetRequest requestPb = new DatastorePb.GetRequest();
-				requestPb.mergeFrom(request);
-
-				logger.info(requestPb.toString());
-			} else if ("datastore_v3".equals(packageName)
-					&& "Delete".equals(methodName)) {
-
-				DatastorePb.DeleteRequest requestPb = new DatastorePb.DeleteRequest();
-				requestPb.mergeFrom(request);
-
-				logger.info(requestPb.toString());
-			} else if ("datastore_v3".equals(packageName)
-					&& "RunQuery".equals(methodName)) {
-
-				{
-					DatastorePb.Query requestPb = new DatastorePb.Query();
-					requestPb.mergeFrom(request);
-
-					logger.info(requestPb.toString());
-				}
-			} else if ("datastore_v3".equals(packageName)
-					&& "Commit".equals(methodName)) {
-
-				DatastorePb.Transaction txPb = new DatastorePb.Transaction();
-				txPb.mergeFrom(request);
-
-				logger.info(txPb.toString());
-			} else if ("datastore_v3".equals(packageName)
-					&& "Rollback".equals(methodName)) {
-
-				DatastorePb.Transaction txPb = new DatastorePb.Transaction();
-				txPb.mergeFrom(request);
-
-				logger.info(txPb.toString());
-			} else if ("memcache".equals(packageName)
-					&& "Set".equals(methodName)) {
-
-				try {
-					MemcacheServicePb.MemcacheSetRequest pb = MemcacheServicePb.MemcacheSetRequest
-							.parseFrom(request);
-					logger.info(pb.toString());
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else if ("memcache".equals(packageName)
-					&& "Get".equals(methodName)) {
-
-				try {
-					MemcacheServicePb.MemcacheGetRequest pb = MemcacheServicePb.MemcacheGetRequest
-							.parseFrom(request);
-					logger.info(pb.toString());
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else if ("memcache".equals(packageName)
-					&& "FlushAll".equals(methodName)) {
-
-				try {
-					MemcacheServicePb.MemcacheFlushRequest pb = MemcacheServicePb.MemcacheFlushRequest
-							.parseFrom(request);
-					logger.info(pb.toString());
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else if ("memcache".equals(packageName)
-					&& "BatchIncrement".equals(methodName)) {
-				try {
-					MemcacheServicePb.MemcacheBatchIncrementRequest pb = MemcacheServicePb.MemcacheBatchIncrementRequest
-							.parseFrom(request);
-					logger.info(pb.toString());
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else if ("memcache".equals(packageName)
-					&& "Increment".equals(methodName)) {
-				try {
-					MemcacheServicePb.MemcacheIncrementRequest pb = MemcacheServicePb.MemcacheIncrementRequest
-							.parseFrom(request);
-					logger.info(pb.toString());
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}
-		}
 	}
 }

@@ -5,8 +5,6 @@ import static org.junit.Assert.assertThat;
 
 import java.util.List;
 
-import net.vvakame.memvache.ProofOfConceptTest.DebugDelegate;
-
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
 import org.slim3.memcache.Memcache;
@@ -21,6 +19,7 @@ import com.google.appengine.api.datastore.Query;
 
 public class MemvacheDelegateTest extends ControllerTestCase {
 
+	RpcCounterDelegate counter;
 	DebugDelegate debugDelegate;
 	MemvacheDelegate delegate;
 
@@ -33,11 +32,11 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			Datastore.put(entity);
 		}
 
-		assertThat(Memcache.statistics().getItemCount(), is(1L));
+		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
 		long count = Memcache.get("@test");
-		assertThat(count, is(1L));
+		assertThat("カウンタが0→1", count, is(1L));
 	}
 
 	@Test
@@ -50,11 +49,11 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			Datastore.put(entity);
 		}
 
-		assertThat(Memcache.statistics().getItemCount(), is(1L));
+		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
 		long count = Memcache.get("hoge@test");
-		assertThat(count, is(1L));
+		assertThat("カウンタが0→1", count, is(1L));
 	}
 
 	@Test
@@ -67,11 +66,11 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			Datastore.put(entityA, entityB);
 		}
 
-		assertThat(Memcache.statistics().getItemCount(), is(1L));
+		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(1L));
 
 		NamespaceManager.set("memvache");
 		long count = Memcache.get("@test");
-		assertThat(count, is(1L));
+		assertThat("カウンタが0→1", count, is(1L));
 	}
 
 	@Test
@@ -84,21 +83,24 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			Datastore.put(entityA, entityB);
 		}
 
-		assertThat(Memcache.statistics().getItemCount(), is(2L));
+		assertThat("新規カウンタ+1", Memcache.statistics().getItemCount(), is(2L));
 
 		NamespaceManager.set("memvache");
-		assertThat((Long) Memcache.get("@test1"), is(1L));
-		assertThat((Long) Memcache.get("@test2"), is(1L));
+		assertThat("カウンタが0→1", (Long) Memcache.get("@test1"), is(1L));
+		assertThat("カウンタが0→1", (Long) Memcache.get("@test2"), is(1L));
 	}
 
 	@Test
 	public void query() {
+
 		{
 			Entity entityA = new Entity("test");
 			Entity entityB = new Entity("test");
 			Datastore.put(entityA, entityB);
 		}
-		assertThat(Memcache.statistics().getItemCount(), is(1L));
+		assertThat("Putでカウンタ追加", Memcache.statistics().getItemCount(), is(1L));
+		assertThat("まだRunQueryは走ってない",
+				counter.countMap.get("datastore_v3@RunQuery"), is(0));
 
 		{
 			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
@@ -107,7 +109,10 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			assertThat(list.size(), is(2));
 
 		}
-		assertThat(Memcache.statistics().getItemCount(), is(2L));
+		assertThat("RunQueryのキャッシュ+1回", Memcache.statistics().getItemCount(),
+				is(2L));
+		assertThat("RunQuery1回実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(1));
 
 		{
 			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
@@ -116,7 +121,10 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			assertThat(list.size(), is(2));
 
 		}
-		assertThat(Memcache.statistics().getItemCount(), is(2L));
+		assertThat("RunQueryキャッシュからHit", Memcache.statistics().getItemCount(),
+				is(2L));
+		assertThat("RunQuery実行増えてない",
+				counter.countMap.get("datastore_v3@RunQuery"), is(1));
 
 		{
 			Entity entityA = new Entity("test");
@@ -130,13 +138,17 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 			assertThat(list.size(), is(4));
 
 		}
-		assertThat(Memcache.statistics().getItemCount(), is(3L));
+		assertThat("Putでカウンタ更新, 新規RunQuery+1回", Memcache.statistics()
+				.getItemCount(), is(3L));
+		assertThat("RunQuery2回目実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(2));
 	}
 
 	@Override
 	public void setUp() throws Exception {
 		super.setUp();
 
+		counter = RpcCounterDelegate.install(); // 一番最初にやらないと現実のRPC数と一致しない
 		debugDelegate = DebugDelegate.install();
 		delegate = MemvacheDelegate.install();
 	}
@@ -145,6 +157,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 	public void tearDown() throws Exception {
 		delegate.uninstall();
 		debugDelegate.uninstall();
+		counter.uninstall();
 
 		super.tearDown();
 	}
