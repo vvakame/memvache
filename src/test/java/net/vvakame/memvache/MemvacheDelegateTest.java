@@ -88,7 +88,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 	}
 
 	@Test
-	public void query() {
+	public void runQuery() {
 
 		{
 			Entity entityA = new Entity("test");
@@ -138,6 +138,61 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		assertThat("Putでカウンタ更新, 新規RunQuery+1回", Memcache.statistics()
 				.getItemCount(), is(3L));
 		assertThat("RunQuery2回目実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(2));
+	}
+
+	@Test
+	public void disable() {
+
+		{
+			Entity entityA = new Entity("test");
+			Entity entityB = new Entity("test");
+			Datastore.put(entityA, entityB);
+		}
+		assertThat("Putでカウンタ追加", Memcache.statistics().getItemCount(), is(1L));
+		assertThat("まだRunQueryは走ってない",
+				counter.countMap.get("datastore_v3@RunQuery"), is(0));
+
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(2));
+
+		}
+		assertThat("RunQueryのキャッシュ+1回", Memcache.statistics().getItemCount(),
+				is(2L));
+		assertThat("RunQuery1回実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(1));
+
+		MemvacheDelegate.get().disable();
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(2));
+
+		}
+		assertThat("変動なし", Memcache.statistics().getItemCount(), is(2L));
+		assertThat("Memvache無しで生実行",
+				counter.countMap.get("datastore_v3@RunQuery"), is(2));
+
+		{
+			Entity entityA = new Entity("test2");
+			Entity entityB = new Entity("test3");
+			Datastore.put(entityA, entityB);
+		}
+		assertThat("Putは動いてる+2回", Memcache.statistics().getItemCount(), is(4L));
+
+		MemvacheDelegate.get().enable();
+		{
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			List<Entity> list = ds.prepare(new Query("test")).asList(
+					FetchOptions.Builder.withDefaults());
+			assertThat(list.size(), is(2));
+
+		}
+		assertThat("RunQuery実行増えてない",
 				counter.countMap.get("datastore_v3@RunQuery"), is(2));
 	}
 

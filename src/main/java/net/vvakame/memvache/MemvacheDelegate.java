@@ -35,7 +35,14 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	static final Logger logger = Logger.getLogger(MemvacheDelegate.class
 			.getName());
 
+	boolean enabled = true;
 	final ApiProxy.Delegate<Environment> parent;
+
+	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
+
+	public static MemvacheDelegate get() {
+		return localThis.get();
+	}
 
 	/**
 	 * {@link MemvacheDelegate}を{@link ApiProxy}に設定する。
@@ -55,6 +62,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			MemvacheDelegate newDelegate = new MemvacheDelegate(
 					originalDelegate);
 			ApiProxy.setDelegate(newDelegate);
+			localThis.set(newDelegate);
 			return newDelegate;
 		} else {
 			return (MemvacheDelegate) originalDelegate;
@@ -69,6 +77,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	 *            {@link MemvacheDelegate#getParent()}を使用すると良い。
 	 */
 	public static void uninstall(Delegate<Environment> originalDelegate) {
+		localThis.set(null);
 		ApiProxy.setDelegate(originalDelegate);
 	}
 
@@ -76,12 +85,28 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	 * {@link MemvacheDelegate}を{@link ApiProxy}からはずす。
 	 */
 	public void uninstall() {
+		localThis.set(null);
 		ApiProxy.setDelegate(parent);
+	}
+
+	public void disable() {
+		enabled = false;
+	}
+
+	public void enable() {
+		enabled = true;
 	}
 
 	@Override
 	public Future<byte[]> makeAsyncCall(Environment env, String service,
 			String method, byte[] requestBytes, ApiConfig config) {
+
+		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
+				&& enabled == false) {
+			return getParent().makeAsyncCall(env, service, method,
+					requestBytes, config);
+		}
 
 		final byte[] data = new PreProcess().visit(service, method,
 				requestBytes);
@@ -100,6 +125,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	@Override
 	public byte[] makeSyncCall(Environment env, String service, String method,
 			byte[] requestBytes) throws ApiProxyException {
+
+		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
+				&& enabled == false) {
+			return getParent().makeSyncCall(env, service, method, requestBytes);
+		}
 
 		final byte[] data = new PreProcess().visit(service, method,
 				requestBytes);
