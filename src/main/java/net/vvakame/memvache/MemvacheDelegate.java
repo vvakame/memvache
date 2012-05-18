@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import net.vvakame.memvache.internal.Pair;
 import net.vvakame.memvache.internal.RpcVisitor;
 
+import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.apphosting.api.ApiProxy;
@@ -278,7 +279,9 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		builder.append("@").append(requestPb.hashCode());
 		builder.append("@").append(counter);
 
-		memcache.put(builder.toString(), data);
+		// 最大5分しかキャッシュしないようにする
+		Expiration expiration = Expiration.byDeltaSeconds(300);
+		memcache.put(builder.toString(), data, expiration);
 	}
 
 	Future<byte[]> createFuture(final byte[] data) {

@@ -149,14 +149,14 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		super.setUp();
 
 		counter = RpcCounterDelegate.install(); // 一番最初にやらないと現実のRPC数と一致しない
-		debugDelegate = DebugDelegate.install();
 		delegate = MemvacheDelegate.install();
+		debugDelegate = DebugDelegate.install();
 	}
 
 	@Override
 	public void tearDown() throws Exception {
-		delegate.uninstall();
 		debugDelegate.uninstall();
+		delegate.uninstall();
 		counter.uninstall();
 
 		super.tearDown();
