@@ -118,12 +118,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		ApiProxy.setDelegate(parent);
 	}
 
-	public void disable() {
-		enabled = false;
+	public static void disable() {
+		get().enabled = false;
 	}
 
-	public void enable() {
-		enabled = true;
+	public static void enable() {
+		get().enabled = true;
 	}
 
 	@Override

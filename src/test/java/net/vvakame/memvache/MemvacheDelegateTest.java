@@ -172,7 +172,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		assertThat("RunQuery1回実行",
 				counter.countMap.get("datastore_v3@RunQuery"), is(1));
 
-		MemvacheDelegate.get().disable();
+		MemvacheDelegate.disable();
 		{
 			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 			List<Entity> list = ds.prepare(new Query("test")).asList(
@@ -191,7 +191,7 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 		}
 		assertThat("Putは動いてる+2回", Memcache.statistics().getItemCount(), is(4L));
 
-		MemvacheDelegate.get().enable();
+		MemvacheDelegate.enable();
 		{
 			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 			List<Entity> list = ds.prepare(new Query("test")).asList(
