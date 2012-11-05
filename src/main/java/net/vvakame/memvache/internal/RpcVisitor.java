@@ -16,11 +16,25 @@ import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.Query;
 import com.google.apphosting.api.DatastorePb.Transaction;
 
+/**
+ * RPCの動作にHookするためのVisitor。
+ * @author vvakame
+ * @param <P>
+ * @param <R>
+ */
 public class RpcVisitor<P, R> {
 
-	static final Logger logger = Logger.getLogger(RpcVisitor.class
-			.getName());
+	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
 
+
+	/**
+	 * Visitor の始点。
+	 * @param service
+	 * @param method
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R visit(final String service, final String method, final P data) {
 		return process(service, method, data);
 	}
@@ -57,8 +71,7 @@ public class RpcVisitor<P, R> {
 		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
 
 			return memcache_FlushAll(requestPb);
-		} else if ("memcache".equals(service)
-				&& "BatchIncrement".equals(method)) {
+		} else if ("memcache".equals(service) && "BatchIncrement".equals(method)) {
 
 			return memcache_BatchIncrement(requestPb);
 		} else if ("memcache".equals(service) && "Increment".equals(method)) {
@@ -71,62 +84,145 @@ public class RpcVisitor<P, R> {
 		return null;
 	}
 
+	/**
+	 * DatastoreのBeginTransaction。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_BeginTransaction(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのPut。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_Put(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのGet。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_Get(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのDelete。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_Delete(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのRunQuery。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_RunQuery(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのCommit。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_Commit(P data) {
 		return null;
 	}
 
+	/**
+	 * DatastoreのRollback。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R datastore_v3_Rollback(P data) {
 		return null;
 	}
 
+	/**
+	 * MemcacheのSet。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R memcache_Set(P data) {
 		return null;
 	}
 
+	/**
+	 * MemcacheのGet。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R memcache_Get(P data) {
 		return null;
 	}
 
+	/**
+	 * MemcacheのFlushAll。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R memcache_FlushAll(P data) {
 		return null;
 	}
 
+	/**
+	 * MemcacheのBatchIncrement。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R memcache_BatchIncrement(P data) {
 		return null;
 	}
 
+	/**
+	 * MemcacheのIncrement。
+	 * @param data
+	 * @return 処理の返り値
+	 * @author vvakame
+	 */
 	public R memcache_Increment(P data) {
 		return null;
 	}
 
-	public static BeginTransactionRequest to_datastore_v3_BeginTransaction(
-			byte[] requestBytes) {
+	/**
+	 * DatastoreのBeginTransactionについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
+	public static BeginTransactionRequest to_datastore_v3_BeginTransaction(byte[] requestBytes) {
 		DatastorePb.BeginTransactionRequest requestPb = new DatastorePb.BeginTransactionRequest();
 		requestPb.mergeFrom(requestBytes);
 
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのPutについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static PutRequest to_datastore_v3_Put(byte[] requestBytes) {
 		DatastorePb.PutRequest requestPb = new DatastorePb.PutRequest();
 		requestPb.mergeFrom(requestBytes);
@@ -134,6 +230,12 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのGetについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static DeleteRequest to_datastore_v3_Get(byte[] requestBytes) {
 		DatastorePb.DeleteRequest requestPb = new DatastorePb.DeleteRequest();
 		requestPb.mergeFrom(requestBytes);
@@ -141,6 +243,12 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのDeleteについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static DeleteRequest to_datastore_v3_Delete(byte[] requestBytes) {
 		DatastorePb.DeleteRequest requestPb = new DatastorePb.DeleteRequest();
 		requestPb.mergeFrom(requestBytes);
@@ -148,6 +256,12 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのRunQueryについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static Query to_datastore_v3_RunQuery(byte[] requestBytes) {
 		DatastorePb.Query requestPb = new DatastorePb.Query();
 		requestPb.mergeFrom(requestBytes);
@@ -155,6 +269,12 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのCommitについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static Transaction to_datastore_v3_Commit(byte[] requestBytes) {
 		DatastorePb.Transaction requestPb = new DatastorePb.Transaction();
 		requestPb.mergeFrom(requestBytes);
@@ -162,6 +282,12 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * DatastoreのRollbackについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static Transaction to_datastore_v3_Rollback(byte[] requestBytes) {
 		DatastorePb.Transaction requestPb = new DatastorePb.Transaction();
 		requestPb.mergeFrom(requestBytes);
@@ -169,10 +295,16 @@ public class RpcVisitor<P, R> {
 		return requestPb;
 	}
 
+	/**
+	 * MemcacheのSetについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static MemcacheSetRequest to_memcache_Set(byte[] requestBytes) {
 		try {
-			MemcacheServicePb.MemcacheSetRequest requestPb = MemcacheServicePb.MemcacheSetRequest
-					.parseFrom(requestBytes);
+			MemcacheServicePb.MemcacheSetRequest requestPb =
+					MemcacheServicePb.MemcacheSetRequest.parseFrom(requestBytes);
 			return requestPb;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "raise exception at memcache, Set", e);
@@ -180,10 +312,16 @@ public class RpcVisitor<P, R> {
 		return null;
 	}
 
+	/**
+	 * MemcacheのGetについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static MemcacheGetRequest to_memcache_Get(byte[] requestBytes) {
 		try {
-			MemcacheServicePb.MemcacheGetRequest requestPb = MemcacheServicePb.MemcacheGetRequest
-					.parseFrom(requestBytes);
+			MemcacheServicePb.MemcacheGetRequest requestPb =
+					MemcacheServicePb.MemcacheGetRequest.parseFrom(requestBytes);
 			return requestPb;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "raise exception at memcache, Get", e);
@@ -191,40 +329,53 @@ public class RpcVisitor<P, R> {
 		return null;
 	}
 
+	/**
+	 * MemcacheのFlushAllについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
 	public static MemcacheFlushRequest to_memcache_FlushAll(byte[] requestBytes) {
 		try {
-			MemcacheServicePb.MemcacheFlushRequest requestPb = MemcacheServicePb.MemcacheFlushRequest
-					.parseFrom(requestBytes);
+			MemcacheServicePb.MemcacheFlushRequest requestPb =
+					MemcacheServicePb.MemcacheFlushRequest.parseFrom(requestBytes);
 			return requestPb;
 		} catch (Exception e) {
-			logger.log(Level.WARNING, "raise exception at memcache, FlushAll",
-					e);
+			logger.log(Level.WARNING, "raise exception at memcache, FlushAll", e);
 		}
 		return null;
 	}
 
-	public static MemcacheBatchIncrementRequest to_memcache_BatchIncrement(
-			byte[] requestBytes) {
+	/**
+	 * MemcacheのBatchIncrementについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
+	public static MemcacheBatchIncrementRequest to_memcache_BatchIncrement(byte[] requestBytes) {
 		try {
-			MemcacheServicePb.MemcacheBatchIncrementRequest requestPb = MemcacheServicePb.MemcacheBatchIncrementRequest
-					.parseFrom(requestBytes);
+			MemcacheServicePb.MemcacheBatchIncrementRequest requestPb =
+					MemcacheServicePb.MemcacheBatchIncrementRequest.parseFrom(requestBytes);
 			return requestPb;
 		} catch (Exception e) {
-			logger.log(Level.WARNING,
-					"raise exception at memcache, BatchIncrement", e);
+			logger.log(Level.WARNING, "raise exception at memcache, BatchIncrement", e);
 		}
 		return null;
 	}
 
-	public static MemcacheIncrementRequest to_memcache_Increment(
-			byte[] requestBytes) {
+	/**
+	 * MemcacheのIncrementについてbyte列からPbのインスタンスに変換する。
+	 * @param requestBytes
+	 * @return Pbのインスタンス
+	 * @author vvakame
+	 */
+	public static MemcacheIncrementRequest to_memcache_Increment(byte[] requestBytes) {
 		try {
-			MemcacheServicePb.MemcacheIncrementRequest requestPb = MemcacheServicePb.MemcacheIncrementRequest
-					.parseFrom(requestBytes);
+			MemcacheServicePb.MemcacheIncrementRequest requestPb =
+					MemcacheServicePb.MemcacheIncrementRequest.parseFrom(requestBytes);
 			return requestPb;
 		} catch (Exception e) {
-			logger.log(Level.WARNING, "raise exception at memcache, Increment",
-					e);
+			logger.log(Level.WARNING, "raise exception at memcache, Increment", e);
 		}
 		return null;
 	}

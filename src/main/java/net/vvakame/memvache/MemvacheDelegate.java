@@ -34,10 +34,13 @@ import com.google.storage.onestore.v3.OnestoreEntity.Path;
 import com.google.storage.onestore.v3.OnestoreEntity.Path.Element;
 import com.google.storage.onestore.v3.OnestoreEntity.Reference;
 
+/**
+ * Memvache core delegate.
+ * @author vvakame
+ */
 public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
-	static final Logger logger = Logger.getLogger(MemvacheDelegate.class
-			.getName());
+	static final Logger logger = Logger.getLogger(MemvacheDelegate.class.getName());
 
 	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
 
@@ -46,17 +49,24 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	static Set<String> ignoreKindSet = Collections.emptySet();
 
 	boolean enabled = true;
+
 	final ApiProxy.Delegate<Environment> parent;
 
+
+	/**
+	 * 現在のスレッドに紐付いている {@link MemvacheDelegate} を取得する。
+	 * @return スレッドに紐付く {@link MemvacheDelegate}
+	 * @author vvakame
+	 */
 	public static MemvacheDelegate get() {
 		return localThis.get();
 	}
 
+
 	static {
 		Properties properties = new Properties();
 		try {
-			properties.load(MemvacheDelegate.class
-					.getResourceAsStream("/memvache.properties"));
+			properties.load(MemvacheDelegate.class.getResourceAsStream("/memvache.properties"));
 
 			String expireSecondStr = properties.getProperty("expireSecond");
 			if (expireSecondStr != null && !"".equals(expireSecondStr)) {
@@ -65,13 +75,13 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			String ignoreKindStr = properties.getProperty("ignoreKind");
 			if (ignoreKindStr != null && !"".equals(ignoreKindStr)) {
-				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr
-						.split(",")));
+				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr.split(",")));
 			}
 		} catch (IOException e) {
 			logger.log(Level.INFO, "", e);
 		}
 	}
+
 
 	/**
 	 * {@link MemvacheDelegate}を{@link ApiProxy}に設定する。
@@ -88,8 +98,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		@SuppressWarnings("unchecked")
 		Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
 		if (originalDelegate instanceof MemvacheDelegate == false) {
-			MemvacheDelegate newDelegate = new MemvacheDelegate(
-					originalDelegate);
+			MemvacheDelegate newDelegate = new MemvacheDelegate(originalDelegate);
 			ApiProxy.setDelegate(newDelegate);
 			localThis.set(newDelegate);
 			return newDelegate;
@@ -118,63 +127,65 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		ApiProxy.setDelegate(parent);
 	}
 
+	/**
+	 * Memvacheの動作を現在処理中のリクエストに限り停止する。
+	 * @author vvakame
+	 */
 	public static void disable() {
 		get().enabled = false;
 	}
 
+	/**
+	 * Memvacheの動作を現在処理中のリクエストに限り再開する。
+	 * @author vvakame
+	 */
 	public static void enable() {
 		get().enabled = true;
 	}
 
 	@Override
-	public Future<byte[]> makeAsyncCall(Environment env, String service,
-			String method, byte[] requestBytes, ApiConfig config) {
+	public Future<byte[]> makeAsyncCall(Environment env, String service, String method,
+			byte[] requestBytes, ApiConfig config) {
 
 		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
-				&& enabled == false) {
-			return getParent().makeAsyncCall(env, service, method,
-					requestBytes, config);
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method) && enabled == false) {
+			return getParent().makeAsyncCall(env, service, method, requestBytes, config);
 		}
 
-		final byte[] data = new PreProcess().visit(service, method,
-				requestBytes);
+		final byte[] data = new PreProcess().visit(service, method, requestBytes);
 		if (data != null) {
 			return createFuture(data);
 		}
 
-		Future<byte[]> future = getParent().makeAsyncCall(env, service, method,
-				requestBytes, config);
-		Future<byte[]> dummy = new PostProcessAsync().visit(service, method,
-				Pair.create(requestBytes, future));
+		Future<byte[]> future =
+				getParent().makeAsyncCall(env, service, method, requestBytes, config);
+		Future<byte[]> dummy =
+				new PostProcessAsync().visit(service, method, Pair.create(requestBytes, future));
 
 		return dummy != null ? dummy : future;
 	}
 
 	@Override
-	public byte[] makeSyncCall(Environment env, String service, String method,
-			byte[] requestBytes) throws ApiProxyException {
+	public byte[] makeSyncCall(Environment env, String service, String method, byte[] requestBytes)
+			throws ApiProxyException {
 
 		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
-				&& enabled == false) {
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method) && enabled == false) {
 			return getParent().makeSyncCall(env, service, method, requestBytes);
 		}
 
-		final byte[] data = new PreProcess().visit(service, method,
-				requestBytes);
+		final byte[] data = new PreProcess().visit(service, method, requestBytes);
 		if (data != null) {
 			return data;
 		}
 
-		byte[] result = getParent().makeSyncCall(env, service, method,
-				requestBytes);
+		byte[] result = getParent().makeSyncCall(env, service, method, requestBytes);
 
-		new PostProcessSync().visit(service, method,
-				Pair.create(requestBytes, result));
+		new PostProcessSync().visit(service, method, Pair.create(requestBytes, result));
 
 		return result;
 	}
+
 
 	static class PreProcess extends RpcVisitor<byte[], byte[]> {
 
@@ -250,12 +261,10 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		}
 	}
 
-	static class PostProcessAsync extends
-			RpcVisitor<Pair<byte[], Future<byte[]>>, Future<byte[]>> {
+	static class PostProcessAsync extends RpcVisitor<Pair<byte[], Future<byte[]>>, Future<byte[]>> {
 
 		@Override
-		public Future<byte[]> datastore_v3_RunQuery(
-				Pair<byte[], Future<byte[]>> pair) {
+		public Future<byte[]> datastore_v3_RunQuery(Pair<byte[], Future<byte[]>> pair) {
 
 			final byte[] requestBytes = pair.first;
 			final Future<byte[]> future = pair.second;
@@ -267,6 +276,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			}
 
 			return new Future<byte[]>() {
+
 				public void processDate(byte[] data) {
 					if (data == null) {
 						return;
@@ -280,17 +290,15 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				}
 
 				@Override
-				public byte[] get() throws InterruptedException,
-						ExecutionException {
+				public byte[] get() throws InterruptedException, ExecutionException {
 					byte[] data = future.get();
 					processDate(data);
 					return data;
 				}
 
 				@Override
-				public byte[] get(long timeout, TimeUnit unit)
-						throws InterruptedException, ExecutionException,
-						TimeoutException {
+				public byte[] get(long timeout, TimeUnit unit) throws InterruptedException,
+						ExecutionException, TimeoutException {
 					byte[] data = future.get(timeout, unit);
 					processDate(data);
 					return data;
@@ -309,8 +317,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		}
 	}
 
-	static class PostProcessSync extends
-			RpcVisitor<Pair<byte[], byte[]>, byte[]> {
+	static class PostProcessSync extends RpcVisitor<Pair<byte[], byte[]>, byte[]> {
 
 		@Override
 		public byte[] datastore_v3_RunQuery(Pair<byte[], byte[]> pair) {
@@ -323,6 +330,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			return data;
 		}
 	}
+
 
 	static MemcacheService getMemcache() {
 		return MemcacheServiceFactory.getMemcacheService("memvache");
@@ -371,14 +379,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			}
 
 			@Override
-			public byte[] get() throws InterruptedException, ExecutionException {
+			public byte[] get() {
 				return data;
 			}
 
 			@Override
-			public byte[] get(long timeout, TimeUnit unit)
-					throws InterruptedException, ExecutionException,
-					TimeoutException {
+			public byte[] get(long timeout, TimeUnit unit) {
 				return data;
 			}
 
