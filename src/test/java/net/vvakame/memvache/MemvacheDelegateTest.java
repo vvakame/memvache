@@ -237,10 +237,15 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 	 */
 	@Test
 	public void ignoreKind() {
-		// ignore1, ignore2 が除外対象
+		// ignore1, ignore2, 先頭が __ が除外対象
 
 		{
 			Entity entity = new Entity("ignore1");
+			Datastore.put(entity);
+		}
+		assertThat("無視される", Memcache.statistics().getItemCount(), is(0L));
+		{
+			Entity entity = new Entity("__reserved");
 			Datastore.put(entity);
 		}
 		assertThat("無視される", Memcache.statistics().getItemCount(), is(0L));

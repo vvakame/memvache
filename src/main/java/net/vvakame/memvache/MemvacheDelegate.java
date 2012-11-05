@@ -76,6 +76,8 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			String ignoreKindStr = properties.getProperty("ignoreKind");
 			if (ignoreKindStr != null && !"".equals(ignoreKindStr)) {
 				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr.split(",")));
+			} else {
+				ignoreKindSet = new HashSet<String>();
 			}
 		} catch (IOException e) {
 			logger.log(Level.INFO, "", e);
@@ -203,7 +205,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				for (Element element : path.mutableElements()) {
 					final String kind = element.getType();
 
-					if (ignoreKindSet.contains(kind)) {
+					if (isIgnoreKind(kind)) {
 						continue;
 					}
 
@@ -235,7 +237,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			final String namespace = pb.getNameSpace();
 			final String kind = pb.getKind();
-			if (ignoreKindSet.contains(kind)) {
+			if (isIgnoreKind(kind)) {
 				return null;
 			}
 
@@ -271,7 +273,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			Query query = to_datastore_v3_RunQuery(requestBytes);
 			final String kind = query.getKind();
-			if (ignoreKindSet.contains(kind)) {
+			if (isIgnoreKind(kind)) {
 				return future;
 			}
 
@@ -345,7 +347,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		final String namespace = requestPb.getNameSpace();
 		final String kind = requestPb.getKind();
 
-		if (ignoreKindSet.contains(kind)) {
+		if (isIgnoreKind(kind)) {
 			return;
 		}
 
@@ -398,6 +400,16 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				return true;
 			}
 		};
+	}
+
+	static boolean isIgnoreKind(String kind) {
+		if (kind.startsWith("__")) {
+			return true;
+		} else if (ignoreKindSet.contains(kind)) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**
