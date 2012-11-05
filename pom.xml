@@ -7,8 +7,8 @@
 	<version>1.0-SNAPSHOT</version>
 
 	<properties>
-		<slim3.version>1.0.15</slim3.version>
-		<appengine.version>1.6.5</appengine.version>
+		<slim3.version>1.0.16</slim3.version>
+		<appengine.version>1.7.3</appengine.version>
 		<generated.src>.apt_generated</generated.src>
 		<generated.test-src>target/generated-test-sources/apt</generated.test-src>
 		<generated.war>war</generated.war>
