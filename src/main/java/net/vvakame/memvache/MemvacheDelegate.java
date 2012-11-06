@@ -1,17 +1,11 @@
 package net.vvakame.memvache;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.vvakame.memvache.internal.Pair;
-import net.vvakame.memvache.internal.RpcVisitor;
 
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
@@ -23,12 +17,6 @@ import com.google.apphosting.api.ApiProxy.Delegate;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.apphosting.api.ApiProxy.LogRecord;
 import com.google.apphosting.api.DatastorePb;
-import com.google.apphosting.api.DatastorePb.PutRequest;
-import com.google.apphosting.api.DatastorePb.Query;
-import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
-import com.google.storage.onestore.v3.OnestoreEntity.Path;
-import com.google.storage.onestore.v3.OnestoreEntity.Path.Element;
-import com.google.storage.onestore.v3.OnestoreEntity.Reference;
 
 /**
  * Memvache core delegate.
@@ -42,7 +30,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	final static Settings settings = new Settings();
 
-	boolean enabled = true;
+	boolean queryCacheEnabled = true;
 
 	final ApiProxy.Delegate<Environment> parent;
 
@@ -101,19 +89,19 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	}
 
 	/**
-	 * Memvacheの動作を現在処理中のリクエストに限り停止する。
+	 * Queryをキャッシュする動作を現在処理中のリクエストに限り停止する。
 	 * @author vvakame
 	 */
-	public static void disable() {
-		get().enabled = false;
+	public static void queryCacheDisable() {
+		get().queryCacheEnabled = false;
 	}
 
 	/**
-	 * Memvacheの動作を現在処理中のリクエストに限り再開する。
+	 * Queryをキャッシュする動作を現在処理中のリクエストに限り再開する。
 	 * @author vvakame
 	 */
-	public static void enable() {
-		get().enabled = true;
+	public static void queryCacheEnable() {
+		get().queryCacheEnabled = true;
 	}
 
 	@Override
@@ -121,7 +109,8 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			byte[] requestBytes, ApiConfig config) {
 
 		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method) && enabled == false) {
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
+				&& queryCacheEnabled == false) {
 			return getParent().makeAsyncCall(env, service, method, requestBytes, config);
 		}
 
@@ -143,7 +132,8 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			throws ApiProxyException {
 
 		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method) && enabled == false) {
+		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
+				&& queryCacheEnabled == false) {
 			return getParent().makeSyncCall(env, service, method, requestBytes);
 		}
 
@@ -158,152 +148,6 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 		return result;
 	}
-
-
-	static class PreProcess extends RpcVisitor<byte[], byte[]> {
-
-		@Override
-		public byte[] datastore_v3_Put(byte[] requestBytes) {
-			final PutRequest pb = to_datastore_v3_Put(requestBytes);
-
-			final MemcacheService memcache = getMemcache();
-			final Set<String> memcacheKeys = new HashSet<String>();
-
-			for (EntityProto entity : pb.entitys()) {
-				final Reference key = entity.getMutableKey();
-				final String namespace = key.getNameSpace();
-				final Path path = key.getPath();
-				for (Element element : path.mutableElements()) {
-					final String kind = element.getType();
-
-					if (isIgnoreKind(kind)) {
-						continue;
-					}
-
-					StringBuilder builder = new StringBuilder();
-					builder.append(namespace).append("@");
-					builder.append(kind);
-
-					memcacheKeys.add(builder.toString());
-				}
-			}
-			if (memcacheKeys.size() == 1) {
-				memcache.increment(memcacheKeys.iterator().next(), 1, 0L);
-			} else if (memcacheKeys.size() != 0) {
-				// memcache.incrementAll(memcacheKeys, 1, 0L);
-				// TODO is this broken method? ↑
-				for (String key : memcacheKeys) {
-					memcache.increment(key, 1, 0L);
-				}
-			}
-
-			return null;
-		}
-
-		@Override
-		public byte[] datastore_v3_RunQuery(byte[] requestBytes) {
-			final Query pb = to_datastore_v3_RunQuery(requestBytes);
-
-			final MemcacheService memcache = getMemcache();
-
-			final String namespace = pb.getNameSpace();
-			final String kind = pb.getKind();
-			if (isIgnoreKind(kind)) {
-				return null;
-			}
-
-			StringBuilder builder = new StringBuilder();
-			builder.append(namespace).append("@");
-			builder.append(kind);
-
-			final long counter;
-			{
-				Object obj = memcache.get(builder.toString());
-				if (obj == null) {
-					counter = 0;
-				} else {
-					counter = (Long) obj;
-				}
-			}
-			builder.append("@").append(pb.hashCode());
-			builder.append("@").append(counter);
-
-			logger.log(Level.INFO, builder.toString());
-
-			return (byte[]) memcache.get(builder.toString());
-		}
-	}
-
-	static class PostProcessAsync extends RpcVisitor<Pair<byte[], Future<byte[]>>, Future<byte[]>> {
-
-		@Override
-		public Future<byte[]> datastore_v3_RunQuery(Pair<byte[], Future<byte[]>> pair) {
-
-			final byte[] requestBytes = pair.first;
-			final Future<byte[]> future = pair.second;
-
-			Query query = to_datastore_v3_RunQuery(requestBytes);
-			final String kind = query.getKind();
-			if (isIgnoreKind(kind)) {
-				return future;
-			}
-
-			return new Future<byte[]>() {
-
-				public void processDate(byte[] data) {
-					if (data == null) {
-						return;
-					}
-					putQueryCache(requestBytes, data);
-				}
-
-				@Override
-				public boolean cancel(boolean mayInterruptIfRunning) {
-					return future.cancel(mayInterruptIfRunning);
-				}
-
-				@Override
-				public byte[] get() throws InterruptedException, ExecutionException {
-					byte[] data = future.get();
-					processDate(data);
-					return data;
-				}
-
-				@Override
-				public byte[] get(long timeout, TimeUnit unit) throws InterruptedException,
-						ExecutionException, TimeoutException {
-					byte[] data = future.get(timeout, unit);
-					processDate(data);
-					return data;
-				}
-
-				@Override
-				public boolean isCancelled() {
-					return future.isCancelled();
-				}
-
-				@Override
-				public boolean isDone() {
-					return future.isDone();
-				}
-			};
-		}
-	}
-
-	static class PostProcessSync extends RpcVisitor<Pair<byte[], byte[]>, byte[]> {
-
-		@Override
-		public byte[] datastore_v3_RunQuery(Pair<byte[], byte[]> pair) {
-
-			final byte[] requestBytes = pair.first;
-			final byte[] data = pair.second;
-
-			putQueryCache(requestBytes, data);
-
-			return data;
-		}
-	}
-
 
 	static MemcacheService getMemcache() {
 		return MemcacheServiceFactory.getMemcacheService("memvache");
@@ -343,6 +187,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		memcache.put(builder.toString(), data, expiration);
 	}
 
+	/**
+	 * 指定したデータを処理結果として返す {@link Future} を作成し返す。
+	 * @param data 処理結果データ
+	 * @return {@link Future}
+	 * @author vvakame
+	 */
 	Future<byte[]> createFuture(final byte[] data) {
 		return new Future<byte[]>() {
 
@@ -373,6 +223,12 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		};
 	}
 
+	/**
+	 * 指定されたKindが予約済または除外指定のKindかどうかを調べて返す。
+	 * @param kind 調べるKind
+	 * @return 処理対象外か否か
+	 * @author vvakame
+	 */
 	static boolean isIgnoreKind(String kind) {
 		if (kind.startsWith("__")) {
 			return true;
