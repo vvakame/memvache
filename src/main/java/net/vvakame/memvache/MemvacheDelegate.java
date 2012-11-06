@@ -1,11 +1,7 @@
 package net.vvakame.memvache;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -44,9 +40,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
 
-	static int expireSecond = 300;
-
-	static Set<String> ignoreKindSet = Collections.emptySet();
+	final static Settings settings = new Settings();
 
 	boolean enabled = true;
 
@@ -61,29 +55,6 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	public static MemvacheDelegate get() {
 		return localThis.get();
 	}
-
-
-	static {
-		Properties properties = new Properties();
-		try {
-			properties.load(MemvacheDelegate.class.getResourceAsStream("/memvache.properties"));
-
-			String expireSecondStr = properties.getProperty("expireSecond");
-			if (expireSecondStr != null && !"".equals(expireSecondStr)) {
-				expireSecond = Integer.parseInt(expireSecondStr);
-			}
-
-			String ignoreKindStr = properties.getProperty("ignoreKind");
-			if (ignoreKindStr != null && !"".equals(ignoreKindStr)) {
-				ignoreKindSet = new HashSet<String>(Arrays.asList(ignoreKindStr.split(",")));
-			} else {
-				ignoreKindSet = new HashSet<String>();
-			}
-		} catch (IOException e) {
-			logger.log(Level.INFO, "", e);
-		}
-	}
-
 
 	/**
 	 * {@link MemvacheDelegate}を{@link ApiProxy}に設定する。
@@ -368,7 +339,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		builder.append("@").append(counter);
 
 		// 最大5分しかキャッシュしないようにする
-		Expiration expiration = Expiration.byDeltaSeconds(expireSecond);
+		Expiration expiration = Expiration.byDeltaSeconds(settings.getExpireSecond());
 		memcache.put(builder.toString(), data, expiration);
 	}
 
@@ -405,7 +376,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	static boolean isIgnoreKind(String kind) {
 		if (kind.startsWith("__")) {
 			return true;
-		} else if (ignoreKindSet.contains(kind)) {
+		} else if (settings.getIgnoreKinds().contains(kind)) {
 			return true;
 		} else {
 			return false;

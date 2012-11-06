@@ -38,8 +38,8 @@ public class MemvacheDelegateTest extends ControllerTestCase {
 	 */
 	@Test
 	public void readConfigure() throws Exception {
-		assertThat("default 300, 読めてたら100", MemvacheDelegate.expireSecond, is(100));
-		assertThat(MemvacheDelegate.ignoreKindSet.size(), is(2));
+		assertThat("default 300, 読めてたら100", MemvacheDelegate.settings.getExpireSecond(), is(100));
+		assertThat(MemvacheDelegate.settings.getIgnoreKinds().size(), is(2));
 	}
 
 	/**
