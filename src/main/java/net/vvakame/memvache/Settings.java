@@ -13,7 +13,7 @@ import java.util.logging.Logger;
  * ユーザが行うMemvacheの設定を読み取る。
  * @author vvakame
  */
-class Settings {
+public class Settings {
 
 	static final Logger logger = Logger.getLogger(Settings.class.getName());
 
@@ -23,6 +23,20 @@ class Settings {
 	/** Queryをキャッシュ"しない"Kindの一覧 */
 	Set<String> ignoreKinds = Collections.emptySet();
 
+	static Settings singleton;
+
+
+	/**
+	 * インスタンスを取得する。
+	 * @return インスタンス
+	 * @author vvakame
+	 */
+	public static Settings getInstance() {
+		if (singleton == null) {
+			singleton = new Settings();
+		}
+		return singleton;
+	}
 
 	Settings() {
 		Properties properties = new Properties();

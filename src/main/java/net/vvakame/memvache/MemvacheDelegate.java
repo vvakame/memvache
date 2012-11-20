@@ -3,11 +3,10 @@ package net.vvakame.memvache;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
-import net.vvakame.memvache.internal.Pair;
+import net.vvakame.memvache.internal.SniffFuture;
+import net.vvakame.memvache.internal.strategy.AggressiveQueryCacheStrategy;
 
-import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.apphosting.api.ApiProxy;
@@ -16,7 +15,6 @@ import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.Delegate;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.apphosting.api.ApiProxy.LogRecord;
-import com.google.apphosting.api.DatastorePb;
 
 /**
  * Memvache core delegate.
@@ -24,11 +22,9 @@ import com.google.apphosting.api.DatastorePb;
  */
 public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
-	static final Logger logger = Logger.getLogger(MemvacheDelegate.class.getName());
-
 	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
 
-	final static Settings settings = new Settings();
+	final static Settings settings = Settings.getInstance();
 
 	boolean queryCacheEnabled = true;
 
@@ -105,86 +101,49 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	}
 
 	@Override
-	public Future<byte[]> makeAsyncCall(Environment env, String service, String method,
-			byte[] requestBytes, ApiConfig config) {
+	public Future<byte[]> makeAsyncCall(Environment env, final String service, final String method,
+			final byte[] requestBytes, ApiConfig config) {
 
-		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
-				&& queryCacheEnabled == false) {
-			return getParent().makeAsyncCall(env, service, method, requestBytes, config);
-		}
-
-		final byte[] data = new PreProcess().visit(service, method, requestBytes);
+		final AggressiveQueryCacheStrategy visitor = new AggressiveQueryCacheStrategy();
+		byte[] data = visitor.preProcess(service, method, requestBytes);
 		if (data != null) {
 			return createFuture(data);
 		}
 
 		Future<byte[]> future =
 				getParent().makeAsyncCall(env, service, method, requestBytes, config);
-		Future<byte[]> dummy =
-				new PostProcessAsync().visit(service, method, Pair.create(requestBytes, future));
+		return new SniffFuture<byte[]>(future) {
 
-		return dummy != null ? dummy : future;
+			@Override
+			public void processDate(byte[] data) {
+				visitor.postProcess(service, method, requestBytes, data);
+			}
+		};
 	}
 
 	@Override
 	public byte[] makeSyncCall(Environment env, String service, String method, byte[] requestBytes)
 			throws ApiProxyException {
 
-		// RunQuery以外(Putとか)では処理しないと後で不整合が発生する可能性があるので
-		if ("datastore_v3".equals(service) && "RunQuery".equals(method)
-				&& queryCacheEnabled == false) {
-			return getParent().makeSyncCall(env, service, method, requestBytes);
-		}
-
-		final byte[] data = new PreProcess().visit(service, method, requestBytes);
+		final AggressiveQueryCacheStrategy visitor = new AggressiveQueryCacheStrategy();
+		byte[] data = visitor.preProcess(service, method, requestBytes);
 		if (data != null) {
 			return data;
 		}
 
-		byte[] result = getParent().makeSyncCall(env, service, method, requestBytes);
+		byte[] response = getParent().makeSyncCall(env, service, method, requestBytes);
+		visitor.postProcess(service, method, requestBytes, response);
 
-		new PostProcessSync().visit(service, method, Pair.create(requestBytes, result));
-
-		return result;
+		return response;
 	}
 
-	static MemcacheService getMemcache() {
+	/**
+	 * Namespaceがセット済みの {@link MemcacheService} を取得する。
+	 * @return {@link MemcacheService}
+	 * @author vvakame
+	 */
+	public static MemcacheService getMemcache() {
 		return MemcacheServiceFactory.getMemcacheService("memvache");
-	}
-
-	static void putQueryCache(final byte[] requestBytes, final byte[] data) {
-		DatastorePb.Query requestPb = new DatastorePb.Query();
-		requestPb.mergeFrom(requestBytes);
-
-		final MemcacheService memcache = getMemcache();
-
-		final String namespace = requestPb.getNameSpace();
-		final String kind = requestPb.getKind();
-
-		if (isIgnoreKind(kind)) {
-			return;
-		}
-
-		StringBuilder builder = new StringBuilder();
-		builder.append(namespace).append("@");
-		builder.append(kind);
-
-		final long counter;
-		{
-			Object obj = memcache.get(builder.toString());
-			if (obj == null) {
-				counter = 0;
-			} else {
-				counter = (Long) obj;
-			}
-		}
-		builder.append("@").append(requestPb.hashCode());
-		builder.append("@").append(counter);
-
-		// 最大5分しかキャッシュしないようにする
-		Expiration expiration = Expiration.byDeltaSeconds(settings.getExpireSecond());
-		memcache.put(builder.toString(), data, expiration);
 	}
 
 	/**
@@ -229,7 +188,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	 * @return 処理対象外か否か
 	 * @author vvakame
 	 */
-	static boolean isIgnoreKind(String kind) {
+	public static boolean isIgnoreKind(String kind) {
 		if (kind.startsWith("__")) {
 			return true;
 		} else if (settings.getIgnoreKinds().contains(kind)) {
