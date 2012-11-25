@@ -1,11 +1,9 @@
 package net.vvakame.memvache;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import net.vvakame.memvache.internal.SniffFuture;
-import net.vvakame.memvache.internal.strategy.AggressiveQueryCacheStrategy;
 
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
@@ -17,7 +15,8 @@ import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.apphosting.api.ApiProxy.LogRecord;
 
 /**
- * Memvache core delegate.
+ * Memvache のコアとなる {@link Delegate}。<br>
+ * 1リクエスト中ではStrategyのインスタンス再生成は行わず使いまわす。
  * @author vvakame
  */
 public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
@@ -26,9 +25,9 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	final static Settings settings = Settings.getInstance();
 
-	boolean queryCacheEnabled = true;
-
 	final ApiProxy.Delegate<Environment> parent;
+
+	List<Strategy> strategies = new ArrayList<Strategy>(3);
 
 
 	/**
@@ -56,12 +55,22 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
 		if (originalDelegate instanceof MemvacheDelegate == false) {
 			MemvacheDelegate newDelegate = new MemvacheDelegate(originalDelegate);
+			cleanUpStrategies(newDelegate);
 			ApiProxy.setDelegate(newDelegate);
 			localThis.set(newDelegate);
 			return newDelegate;
 		} else {
-			return (MemvacheDelegate) originalDelegate;
+			MemvacheDelegate delegate = (MemvacheDelegate) originalDelegate;
+			cleanUpStrategies(delegate);
+			return delegate;
 		}
+	}
+
+	static void cleanUpStrategies(MemvacheDelegate memvache) {
+		memvache.strategies.clear();
+		memvache.strategies.add(new AggressiveQueryCacheStrategy());
+		memvache.strategies.add(new QueryKeysOnlyStrategy());
+		memvache.strategies.add(new GetPutCacheStrategy());
 	}
 
 	/**
@@ -84,39 +93,48 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		ApiProxy.setDelegate(parent);
 	}
 
-	/**
-	 * Queryをキャッシュする動作を現在処理中のリクエストに限り停止する。
-	 * @author vvakame
-	 */
-	public static void queryCacheDisable() {
-		get().queryCacheEnabled = false;
-	}
-
-	/**
-	 * Queryをキャッシュする動作を現在処理中のリクエストに限り再開する。
-	 * @author vvakame
-	 */
-	public static void queryCacheEnable() {
-		get().queryCacheEnabled = true;
-	}
-
 	@Override
 	public Future<byte[]> makeAsyncCall(Environment env, final String service, final String method,
 			final byte[] requestBytes, ApiConfig config) {
 
-		final AggressiveQueryCacheStrategy visitor = new AggressiveQueryCacheStrategy();
-		byte[] data = visitor.preProcess(service, method, requestBytes);
-		if (data != null) {
-			return createFuture(data);
+		return processAsyncCall(env, service, method, requestBytes, config, 0);
+	}
+
+	Future<byte[]> processAsyncCall(Environment env, final String service, final String method,
+			final byte[] requestBytes, ApiConfig config, int depth) {
+
+		// 適用すべき戦略がなかったら実際のRPCを行う
+		if (strategies.size() == depth) {
+			return getParent().makeAsyncCall(env, service, method, requestBytes, config);
 		}
 
-		Future<byte[]> future =
-				getParent().makeAsyncCall(env, service, method, requestBytes, config);
-		return new SniffFuture<byte[]>(future) {
+		final Strategy strategy = strategies.get(depth);
+
+		// responseが生成されていたらそっちを結果として返す
+		Pair<byte[], byte[]> pair = strategy.preProcess(service, method, requestBytes);
+		if (pair != null && pair.response != null) {
+			return createFuture(pair.response);
+		}
+
+		// 次の戦略を適用する。もしリクエストが改変されてたらそっちを渡す。
+		Future<byte[]> response;
+		if (pair != null && pair.request != null) {
+			response = processAsyncCall(env, service, method, pair.request, config, depth + 1);
+		} else {
+			response = processAsyncCall(env, service, method, requestBytes, config, depth + 1);
+		}
+
+		// responseが改変されてたらそっちを結果として返す
+		return new SniffFuture<byte[]>(response) {
 
 			@Override
-			public void processDate(byte[] data) {
-				visitor.postProcess(service, method, requestBytes, data);
+			public byte[] processDate(byte[] data) {
+				byte[] modified = strategy.postProcess(service, method, requestBytes, data);
+				if (modified != null) {
+					return modified;
+				} else {
+					return data;
+				}
 			}
 		};
 	}
@@ -125,16 +143,40 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	public byte[] makeSyncCall(Environment env, String service, String method, byte[] requestBytes)
 			throws ApiProxyException {
 
-		final AggressiveQueryCacheStrategy visitor = new AggressiveQueryCacheStrategy();
-		byte[] data = visitor.preProcess(service, method, requestBytes);
-		if (data != null) {
-			return data;
+		return processSyncCall(env, service, method, requestBytes, 0);
+	}
+
+	byte[] processSyncCall(Environment env, String service, String method, byte[] requestBytes,
+			int depth) {
+
+		// 適用すべき戦略がなかったら実際のRPCを行う
+		if (strategies.size() == depth) {
+			return getParent().makeSyncCall(env, service, method, requestBytes);
 		}
 
-		byte[] response = getParent().makeSyncCall(env, service, method, requestBytes);
-		visitor.postProcess(service, method, requestBytes, response);
+		Strategy strategy = strategies.get(depth);
 
-		return response;
+		// responseが生成されていたらそっちを結果として返す
+		Pair<byte[], byte[]> pair = strategy.preProcess(service, method, requestBytes);
+		if (pair != null && pair.response != null) {
+			return pair.response;
+		}
+
+		// 次の戦略を適用する。もしリクエストが改変されてたらそっちを渡す。
+		byte[] response;
+		if (pair != null && pair.request != null) {
+			response = processSyncCall(env, service, method, pair.request, depth + 1);
+		} else {
+			response = processSyncCall(env, service, method, requestBytes, depth + 1);
+		}
+
+		// responseが改変されてたらそっちを結果として返す
+		byte[] modified = strategy.postProcess(service, method, requestBytes, response);
+		if (modified != null) {
+			return modified;
+		} else {
+			return response;
+		}
 	}
 
 	/**
@@ -180,22 +222,6 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 				return true;
 			}
 		};
-	}
-
-	/**
-	 * 指定されたKindが予約済または除外指定のKindかどうかを調べて返す。
-	 * @param kind 調べるKind
-	 * @return 処理対象外か否か
-	 * @author vvakame
-	 */
-	public static boolean isIgnoreKind(String kind) {
-		if (kind.startsWith("__")) {
-			return true;
-		} else if (settings.getIgnoreKinds().contains(kind)) {
-			return true;
-		} else {
-			return false;
-		}
 	}
 
 	/**

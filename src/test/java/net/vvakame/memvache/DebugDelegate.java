@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
-import net.vvakame.memvache.internal.RpcVisitor;
-import net.vvakame.memvache.internal.SniffFuture;
 
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementResponse;
@@ -115,8 +113,9 @@ public class DebugDelegate implements Delegate<Environment> {
 		return new SniffFuture<byte[]>(future) {
 
 			@Override
-			public void processDate(byte[] data) {
+			public byte[] processDate(byte[] data) {
 				postProcess(service, method, request, data);
+				return null;
 			}
 		};
 	}
@@ -132,169 +131,178 @@ public class DebugDelegate implements Delegate<Environment> {
 		return response;
 	}
 
-	static void postProcess(String service, String method, byte[] request, byte[] response) {
+	void postProcess(String service, String method, byte[] request, byte[] response) {
 		logger.info("post packageName=" + service + ", methodName=" + method + ", dataSize="
 				+ response.length);
 		visitor.postProcess(service, method, request, response);
 	}
 
-	static void preProcess(String service, String method, byte[] request) {
+	void preProcess(String service, String method, byte[] request) {
 		logger.info("pre  packageName=" + service + ", methodName=" + method + ", dataSize="
 				+ request.length);
 		visitor.preProcess(service, method, request);
 	}
 
 
-	static RpcVisitor visitor = new RpcVisitor() {
+	RpcVisitor visitor = new RpcVisitor() {
 
 		@Override
-		public byte[] pre_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_BeginTransaction(
+				BeginTransactionRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_BeginTransaction(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb,
+		public byte[] post_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb,
 				Transaction responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_BeginTransaction(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_Put(PutRequest requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_Put(PutRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_Put(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
+		public byte[] post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Put(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_Get(GetRequest requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_Get(GetRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_Get(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
+		public byte[] post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Get(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_Delete(DeleteRequest requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_Delete(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_Delete(DeleteRequest requestPb, DeleteResponse responsePb) {
+		public byte[] post_datastore_v3_Delete(DeleteRequest requestPb, DeleteResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Delete(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_RunQuery(Query requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_RunQuery(Query requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_RunQuery(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
+		public byte[] post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_RunQuery(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_Commit(Transaction requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_Commit(Transaction requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_Commit(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
+		public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Commit(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_datastore_v3_Rollback(Transaction requestPb) {
+		public Pair<byte[], byte[]> pre_datastore_v3_Rollback(Transaction requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_datastore_v3_Rollback(requestPb);
 		}
 
 		@Override
-		public boolean post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
+		public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Rollback(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_memcache_Set(MemcacheSetRequest requestPb) {
+		public Pair<byte[], byte[]> pre_memcache_Set(MemcacheSetRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_memcache_Set(requestPb);
 		}
 
 		@Override
-		public boolean post_memcache_Set(MemcacheSetRequest requestPb,
-				MemcacheSetResponse responsePb) {
+		public byte[] post_memcache_Set(MemcacheSetRequest requestPb, MemcacheSetResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_Set(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_memcache_Get(MemcacheGetRequest requestPb) {
+		public Pair<byte[], byte[]> pre_memcache_Get(MemcacheGetRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_memcache_Get(requestPb);
 		}
 
 		@Override
-		public boolean post_memcache_Get(MemcacheGetRequest requestPb,
-				MemcacheGetResponse responsePb) {
+		public byte[] post_memcache_Get(MemcacheGetRequest requestPb, MemcacheGetResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_Get(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
+		public Pair<byte[], byte[]> pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_memcache_FlushAll(requestPb);
 		}
 
 		@Override
-		public boolean post_memcache_FlushAll(MemcacheFlushRequest requestPb,
+		public byte[] post_memcache_FlushAll(MemcacheFlushRequest requestPb,
 				MemcacheFlushResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_FlushAll(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb) {
+		public Pair<byte[], byte[]> pre_memcache_BatchIncrement(
+				MemcacheBatchIncrementRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_memcache_BatchIncrement(requestPb);
 		}
 
 		@Override
-		public boolean post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
+		public byte[] post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
 				MemcacheBatchIncrementResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_BatchIncrement(requestPb, responsePb);
 		}
 
 		@Override
-		public byte[] pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
+		public Pair<byte[], byte[]> pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
 			logger.info(requestPb.toString());
 			return super.pre_memcache_Increment(requestPb);
 		}
 
 		@Override
-		public boolean post_memcache_Increment(MemcacheIncrementRequest requestPb,
+		public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
 				MemcacheIncrementResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_Increment(requestPb, responsePb);
 		}
 	};
+
+
+	/**
+	 * @param visitor the visitor to set
+	 * @category accessor
+	 */
+	public void setVisitor(RpcVisitor visitor) {
+		this.visitor = visitor;
+	}
 }

@@ -1,4 +1,4 @@
-package net.vvakame.memvache.internal;
+package net.vvakame.memvache;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -10,7 +10,7 @@ import java.util.concurrent.TimeoutException;
  * @author vvakame
  * @param <P>
  */
-public abstract class SniffFuture<P> implements Future<P> {
+abstract class SniffFuture<P> implements Future<P> {
 
 	final Future<P> root;
 
@@ -27,9 +27,10 @@ public abstract class SniffFuture<P> implements Future<P> {
 	/**
 	 * 覗き見して行う処理。
 	 * @param data 処理結果データ
+	 * @return 改変後の処理結果データ
 	 * @author vvakame
 	 */
-	public abstract void processDate(P data);
+	public abstract P processDate(P data);
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
@@ -39,16 +40,24 @@ public abstract class SniffFuture<P> implements Future<P> {
 	@Override
 	public P get() throws InterruptedException, ExecutionException {
 		P data = root.get();
-		processDate(data);
-		return data;
+		P modified = processDate(data);
+		if (modified != null) {
+			return modified;
+		} else {
+			return data;
+		}
 	}
 
 	@Override
 	public P get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
 			TimeoutException {
 		P data = root.get(timeout, unit);
-		processDate(data);
-		return data;
+		P modified = processDate(data);
+		if (modified != null) {
+			return modified;
+		} else {
+			return data;
+		}
 	}
 
 	@Override

@@ -10,10 +10,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * ユーザが行うMemvacheの設定を読み取る。
+ * ユーザが行うMemvacheの設定を読み取る。<br>
+ * 主に、 {@link AggressiveQueryCacheStrategy} に影響をおよぼす。
  * @author vvakame
  */
-public class Settings {
+class Settings {
 
 	static final Logger logger = Logger.getLogger(Settings.class.getName());
 

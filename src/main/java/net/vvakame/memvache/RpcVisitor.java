@@ -1,6 +1,5 @@
-package net.vvakame.memvache.internal;
+package net.vvakame.memvache;
 
-import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +30,7 @@ import com.google.apphosting.api.DatastorePb.Transaction;
  * {@link #preProcess(String, String, byte[])} と {@link #postProcess(String, String, byte[], byte[])} が入り口。
  * @author vvakame
  */
-public class RpcVisitor {
+public class RpcVisitor implements Strategy {
 
 	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
 
@@ -41,79 +40,76 @@ public class RpcVisitor {
 	 * もし、そのRPCをキャンセルして何らかの処理結果を受け取った事にしたい場合、null以外の値を返す。
 	 * @param service
 	 * @param method
-	 * @param data request内容
+	 * @param request request内容
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public final byte[] preProcess(final String service, final String method, final byte[] data) {
+	@Override
+	public final Pair<byte[], byte[]> preProcess(final String service, final String method,
+			final byte[] request) {
 
 		if ("datastore_v3".equals(service) && "BeginTransaction".equals(method)) {
 			BeginTransactionRequest requestPb = new BeginTransactionRequest();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_BeginTransaction(requestPb);
 		} else if ("datastore_v3".equals(service) && "Put".equals(method)) {
 			PutRequest requestPb = new PutRequest();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Put(requestPb);
 		} else if ("datastore_v3".equals(service) && "Get".equals(method)) {
 			GetRequest requestPb = new GetRequest();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Get(requestPb);
 		} else if ("datastore_v3".equals(service) && "Delete".equals(method)) {
 			DeleteRequest requestPb = new DeleteRequest();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Delete(requestPb);
 		} else if ("datastore_v3".equals(service) && "RunQuery".equals(method)) {
 			Query requestPb = new Query();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_RunQuery(requestPb);
 		} else if ("datastore_v3".equals(service) && "Commit".equals(method)) {
 			Transaction requestPb = new Transaction();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Commit(requestPb);
 		} else if ("datastore_v3".equals(service) && "Rollback".equals(method)) {
 			Transaction requestPb = new Transaction();
-			requestPb.mergeFrom(data);
+			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Rollback(requestPb);
 		} else if ("memcache".equals(service) && "Set".equals(method)) {
 			try {
-				MemcacheSetRequest requestPb = MemcacheSetRequest.parseFrom(data);
+				MemcacheSetRequest requestPb = MemcacheSetRequest.parseFrom(request);
 				return pre_memcache_Set(requestPb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "Get".equals(method)) {
 			try {
-				MemcacheGetRequest requestPb = MemcacheGetRequest.parseFrom(data);
+				MemcacheGetRequest requestPb = MemcacheGetRequest.parseFrom(request);
 				return pre_memcache_Get(requestPb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
 			try {
-				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(data);
+				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
 				return pre_memcache_FlushAll(requestPb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "BatchIncrement".equals(method)) {
 			try {
 				MemcacheBatchIncrementRequest requestPb =
-						MemcacheBatchIncrementRequest.parseFrom(data);
+						MemcacheBatchIncrementRequest.parseFrom(request);
 				return pre_memcache_BatchIncrement(requestPb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "Increment".equals(method)) {
 			try {
-				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(data);
+				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(request);
 				return pre_memcache_Increment(requestPb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
 		} else {
@@ -133,7 +129,8 @@ public class RpcVisitor {
 	 * @return 何か処理を行ったか否か
 	 * @author vvakame
 	 */
-	public final boolean postProcess(final String service, final String method,
+	@Override
+	public final byte[] postProcess(final String service, final String method,
 			final byte[] request, final byte[] response) {
 
 		if ("datastore_v3".equals(service) && "BeginTransaction".equals(method)) {
@@ -183,8 +180,7 @@ public class RpcVisitor {
 				MemcacheSetRequest requestPb = MemcacheSetRequest.parseFrom(request);
 				MemcacheSetResponse responsePb = MemcacheSetResponse.parseFrom(response);
 				return post_memcache_Set(requestPb, responsePb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "Get".equals(method)) {
@@ -192,8 +188,7 @@ public class RpcVisitor {
 				MemcacheGetRequest requestPb = MemcacheGetRequest.parseFrom(request);
 				MemcacheGetResponse responsePb = MemcacheGetResponse.parseFrom(response);
 				return post_memcache_Get(requestPb, responsePb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
@@ -201,8 +196,7 @@ public class RpcVisitor {
 				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
 				MemcacheFlushResponse responsePb = MemcacheFlushResponse.parseFrom(response);
 				return post_memcache_FlushAll(requestPb, responsePb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "BatchIncrement".equals(method)) {
@@ -212,8 +206,7 @@ public class RpcVisitor {
 				MemcacheBatchIncrementResponse responsePb =
 						MemcacheBatchIncrementResponse.parseFrom(response);
 				return post_memcache_BatchIncrement(requestPb, responsePb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
 		} else if ("memcache".equals(service) && "Increment".equals(method)) {
@@ -222,15 +215,14 @@ public class RpcVisitor {
 				MemcacheIncrementResponse responsePb =
 						MemcacheIncrementResponse.parseFrom(response);
 				return post_memcache_Increment(requestPb, responsePb);
-			} catch (IOException e) {
-				// InvalidProtocolBufferException class was repackaged.
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
 		} else {
 			logger.info("unknown service=" + service + ", method=" + method);
 		}
 
-		return false;
+		return null;
 	}
 
 	/**
@@ -239,7 +231,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb) {
 		return null;
 	}
 
@@ -247,12 +239,12 @@ public class RpcVisitor {
 	 * DatastoreのBeginTransactionの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb,
+	public byte[] post_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb,
 			Transaction responsePb) {
-		return false;
+		return null;
 	}
 
 	/**
@@ -261,7 +253,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_Put(PutRequest requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_Put(PutRequest requestPb) {
 		return null;
 	}
 
@@ -269,11 +261,11 @@ public class RpcVisitor {
 	 * DatastoreのPutの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
-		return false;
+	public byte[] post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -282,7 +274,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_Get(GetRequest requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_Get(GetRequest requestPb) {
 		return null;
 	}
 
@@ -290,11 +282,11 @@ public class RpcVisitor {
 	 * DatastoreのGetの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
-		return false;
+	public byte[] post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -303,7 +295,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_Delete(DeleteRequest requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
 		return null;
 	}
 
@@ -311,11 +303,11 @@ public class RpcVisitor {
 	 * DatastoreのDeleteの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_Delete(DeleteRequest requestPb, DeleteResponse responsePb) {
-		return false;
+	public byte[] post_datastore_v3_Delete(DeleteRequest requestPb, DeleteResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -324,7 +316,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_RunQuery(Query requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_RunQuery(Query requestPb) {
 		return null;
 	}
 
@@ -332,11 +324,11 @@ public class RpcVisitor {
 	 * DatastoreのRunQueryの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
-		return false;
+	public byte[] post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
+		return null;
 	}
 
 	/**
@@ -345,7 +337,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_Commit(Transaction requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_Commit(Transaction requestPb) {
 		return null;
 	}
 
@@ -353,11 +345,11 @@ public class RpcVisitor {
 	 * DatastoreのCommitの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
-		return false;
+	public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -366,7 +358,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_datastore_v3_Rollback(Transaction requestPb) {
+	public Pair<byte[], byte[]> pre_datastore_v3_Rollback(Transaction requestPb) {
 		return null;
 	}
 
@@ -374,11 +366,11 @@ public class RpcVisitor {
 	 * DatastoreのRollbackの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
-		return false;
+	public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -387,7 +379,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_memcache_Set(MemcacheSetRequest requestPb) {
+	public Pair<byte[], byte[]> pre_memcache_Set(MemcacheSetRequest requestPb) {
 		return null;
 	}
 
@@ -395,11 +387,11 @@ public class RpcVisitor {
 	 * MemcacheのSetの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_memcache_Set(MemcacheSetRequest requestPb, MemcacheSetResponse responsePb) {
-		return false;
+	public byte[] post_memcache_Set(MemcacheSetRequest requestPb, MemcacheSetResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -408,7 +400,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_memcache_Get(MemcacheGetRequest requestPb) {
+	public Pair<byte[], byte[]> pre_memcache_Get(MemcacheGetRequest requestPb) {
 		return null;
 	}
 
@@ -416,12 +408,11 @@ public class RpcVisitor {
 	 * MemcacheのGetの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_memcache_Get(MemcacheGetRequest requestPb, MemcacheGetResponse responsePb) {
-		// TODO Auto-generated method stub
-		return false;
+	public byte[] post_memcache_Get(MemcacheGetRequest requestPb, MemcacheGetResponse responsePb) {
+		return null;
 	}
 
 	/**
@@ -430,7 +421,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
+	public Pair<byte[], byte[]> pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
 		return null;
 	}
 
@@ -438,12 +429,12 @@ public class RpcVisitor {
 	 * MemcacheのFlushAllの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_memcache_FlushAll(MemcacheFlushRequest requestPb,
+	public byte[] post_memcache_FlushAll(MemcacheFlushRequest requestPb,
 			MemcacheFlushResponse responsePb) {
-		return false;
+		return null;
 	}
 
 	/**
@@ -452,7 +443,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb) {
+	public Pair<byte[], byte[]> pre_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb) {
 		return null;
 	}
 
@@ -460,12 +451,12 @@ public class RpcVisitor {
 	 * MemcacheのBatchIncrementの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
+	public byte[] post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
 			MemcacheBatchIncrementResponse responsePb) {
-		return false;
+		return null;
 	}
 
 	/**
@@ -474,7 +465,7 @@ public class RpcVisitor {
 	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public byte[] pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
+	public Pair<byte[], byte[]> pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
 		return null;
 	}
 
@@ -482,11 +473,11 @@ public class RpcVisitor {
 	 * MemcacheのIncrementの後処理を行う。
 	 * @param requestPb
 	 * @param responsePb 
-	 * @return 処理を行ったか否か
+	 * @return 処理の返り値 or null
 	 * @author vvakame
 	 */
-	public boolean post_memcache_Increment(MemcacheIncrementRequest requestPb,
+	public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
 			MemcacheIncrementResponse responsePb) {
-		return false;
+		return null;
 	}
 }
