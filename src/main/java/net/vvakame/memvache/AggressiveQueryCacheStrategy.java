@@ -105,13 +105,15 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 	}
 
 	/**
-	 * 指定されたKindが予約済または除外指定のKindかどうかを調べて返す。
+	 * 指定されたKindが予約済またはKindlessQueryまたは除外指定のKindかどうかを調べて返す。
 	 * @param kind 調べるKind
 	 * @return 処理対象外か否か
 	 * @author vvakame
 	 */
 	public static boolean isIgnoreKind(String kind) {
 		if (kind.startsWith("__")) {
+			return true;
+		} else if ("".equals(kind)) {
 			return true;
 		} else if (Settings.getInstance().getIgnoreKinds().contains(kind)) {
 			return true;
