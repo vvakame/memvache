@@ -11,14 +11,18 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
+/**
+ * {@link MemvacheDelegate} を適用するための {@link Filter}。
+ * @author vvakame
+ */
 public class MemvacheFilter implements Filter {
 
-	static final Logger logger = Logger.getLogger(MemvacheFilter.class
-			.getSimpleName());
+	static final Logger logger = Logger.getLogger(MemvacheFilter.class.getSimpleName());
+
 
 	@Override
-	public void doFilter(ServletRequest request, ServletResponse response,
-			FilterChain chain) throws IOException, ServletException {
+	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+			throws IOException, ServletException {
 
 		MemvacheDelegate delegate = null;
 		try {

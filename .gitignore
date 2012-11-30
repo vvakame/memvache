@@ -7,5 +7,6 @@ war/WEB-INF/lib/appengine-*
 .project
 .factorypath
 .classpath
+eclipse.lib/
 .idea/
 www-test/
