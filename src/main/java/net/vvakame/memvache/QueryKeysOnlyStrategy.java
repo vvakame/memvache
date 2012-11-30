@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.slim3.datastore.Datastore;
-
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.EntityTranslatorPublic;
 import com.google.appengine.api.datastore.Key;
@@ -77,7 +77,8 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 			}
 		}
 
-		Map<Key, Entity> batchGet = Datastore.getAsMap(missingKeys);
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		Map<Key, Entity> batchGet = datastore.get(missingKeys);
 
 		// 1つの検索結果であるかのように組み立てる
 		responsePb.setKeysOnly(false);

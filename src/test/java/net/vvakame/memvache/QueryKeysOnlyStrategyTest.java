@@ -2,8 +2,6 @@ package net.vvakame.memvache;
 
 import java.util.List;
 
-import net.vvakame.memvache.QueryKeysOnlyStrategy;
-
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
 import org.slim3.tester.ControllerTestCase;
@@ -28,14 +26,17 @@ public class QueryKeysOnlyStrategyTest extends ControllerTestCase {
 		{
 			Entity entity = new Entity("hoge", 1);
 			entity.setProperty("v", "val1");
+			Datastore.put(entity);
 		}
 		{
 			Entity entity = new Entity("hoge", 2);
 			entity.setProperty("v", "val2");
+			Datastore.put(entity);
 		}
 		{
 			Entity entity = new Entity("hoge", 3);
 			entity.setProperty("v", "val3");
+			Datastore.put(entity);
 		}
 
 		List<Entity> entityList = Datastore.query("hoge").asEntityList();
