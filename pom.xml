@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>net.vvakame</groupId>
@@ -23,6 +24,69 @@
 		<developerConnection>scm:git:git@github.com:vvakame/memvache.git</developerConnection>
 		<url>git@github.com:vvakame/memvache.git</url>
 	</scm>
+
+	<developers>
+		<developer>
+			<id>vvakame</id>
+			<name>wakame masahiro</name>
+			<email>vvakame@gmail.com</email>
+			<url>http://d.hatena.ne.jp/vvakame/</url>
+			<roles>
+				<role>lead</role>
+				<role>architect</role>
+				<role>developer</role>
+			</roles>
+			<timezone>+9</timezone>
+		</developer>
+	</developers>
+
+	<issueManagement>
+		<system>github</system>
+		<url>https://github.com/vvakame/memvache/issues</url>
+	</issueManagement>
+
+	<profiles>
+		<profile>
+			<id>release-sign-artifacts</id>
+			<activation>
+				<property>
+					<name>performRelease</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.4</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+	<distributionManagement>
+		<repository>
+			<id>sonatype-nexus-staging</id>
+			<name>Nexus Release Repository</name>
+			<uniqueVersion>false</uniqueVersion>
+			<url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshot-repo</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<properties>
 		<slim3.version>1.0.16</slim3.version>
@@ -66,18 +130,9 @@
 			<artifactId>slim3</artifactId>
 			<version>${slim3.version}</version>
 			<scope>test</scope>
-			<!-- 
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.appengine</groupId>
-					<artifactId>appengine-api-1.0-sdk</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.appengine</groupId>
-					<artifactId>appengine-api-labs</artifactId>
-				</exclusion>
-			</exclusions>
-			 -->
+			<!-- <exclusions> <exclusion> <groupId>com.google.appengine</groupId> 
+				<artifactId>appengine-api-1.0-sdk</artifactId> </exclusion> <exclusion> <groupId>com.google.appengine</groupId> 
+				<artifactId>appengine-api-labs</artifactId> </exclusion> </exclusions> -->
 		</dependency>
 		<dependency>
 			<groupId>javax.servlet</groupId>
@@ -127,6 +182,11 @@
 		<outputDirectory>${generated.war}/WEB-INF/classes</outputDirectory>
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<artifactId>maven-release-plugin</artifactId>
+					<version>2.3.2</version>
+				</plugin>
+
 				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>2.3.2</version>
