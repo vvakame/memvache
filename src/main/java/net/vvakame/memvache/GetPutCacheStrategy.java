@@ -35,9 +35,6 @@ class GetPutCacheStrategy extends RpcVisitor {
 	Map<Long, Map<Key, EntityProto>> putUnderTx = new HashMap<Long, Map<Key, EntityProto>>();
 
 
-	// BeginTransaction, Commit, Rollback の対応が必要？
-	// Tx下だとPutが確実に成功するとは限らない(=常にキャッシュしてはいけない)
-
 	/**
 	 * Getを行う前の動作として、Memcacheから解決できる要素について処理を行う。<br>
 	 * Memcacheからの不足分のみでリクエストを再構成する。<br>
