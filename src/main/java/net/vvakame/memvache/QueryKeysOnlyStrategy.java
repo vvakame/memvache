@@ -70,22 +70,25 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 		}
 
 		// Memcacheから取得できなかった部分をBatchGet
-		List<Key> missingKeys = new ArrayList<Key>();
-		for (Key key : keys) {
-			if (!cached.containsKey(key)) {
-				missingKeys.add(key);
+		Map<Key, Entity> batchGet = null;
+		if (cached.size() != keys.size()) {
+			List<Key> missingKeys = new ArrayList<Key>();
+			for (Key key : keys) {
+				if (!cached.containsKey(key)) {
+					missingKeys.add(key);
+				}
 			}
-		}
 
-		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-		Map<Key, Entity> batchGet = datastore.get(missingKeys);
+			DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+			batchGet = datastore.get(missingKeys);
+		}
 
 		// 1つの検索結果であるかのように組み立てる
 		responsePb.setKeysOnly(false);
 		responsePb.clearResult();
 
 		for (Key key : keys) {
-			if (batchGet.containsKey(key)) {
+			if (batchGet != null && batchGet.containsKey(key)) {
 				EntityProto proto = EntityTranslatorPublic.convertToPb(batchGet.get(key));
 				responsePb.addResult(proto);
 			} else {
@@ -95,6 +98,6 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 
 		// TODO compiledQuery, compiledCursor, cursor, index, indexOnly …etcについてKeysOnlyにしたことで挙動が変わるかを調査しないとアカン。
 
-		return null;
+		return responsePb.toByteArray();
 	}
 }

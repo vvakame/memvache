@@ -111,7 +111,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		final Strategy strategy = strategies.get(depth);
 
 		// responseが生成されていたらそっちを結果として返す
-		Pair<byte[], byte[]> pair = strategy.preProcess(service, method, requestBytes);
+		final Pair<byte[], byte[]> pair = strategy.preProcess(service, method, requestBytes);
 		if (pair != null && pair.response != null) {
 			return createFuture(pair.response);
 		}
@@ -129,7 +129,13 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 			@Override
 			public byte[] processDate(byte[] data) {
-				byte[] modified = strategy.postProcess(service, method, requestBytes, data);
+				byte[] modified;
+				if (pair != null && pair.request != null) {
+					modified = strategy.postProcess(service, method, pair.request, data);
+				} else {
+					modified = strategy.postProcess(service, method, requestBytes, data);
+				}
+
 				if (modified != null) {
 					return modified;
 				} else {
