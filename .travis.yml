@@ -1,0 +1,19 @@
+language: java
+
+script: mvn clean test install
+
+jdk:
+  - openjdk7
+  - oraclejdk7
+  - openjdk6
+
+branches:
+  except:
+    - gh-pages
+
+notifications:
+  email:
+    recipients:
+      - vvakame@gmail.com
+
+

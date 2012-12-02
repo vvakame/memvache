@@ -35,9 +35,9 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 		final MemcacheService memcache = MemvacheDelegate.getMemcache();
 		String memcacheKey = MemcacheKeyUtil.createQueryKey(memcache, requestPb);
 
-		byte[] response = (byte[]) memcache.get(memcacheKey);
+		QueryResult response = (QueryResult) memcache.get(memcacheKey);
 		if (response != null) {
-			return Pair.response(response);
+			return Pair.response(response.toByteArray());
 		} else {
 			return null;
 		}
@@ -96,7 +96,7 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 			memcacheKeys.add(memcacheKey);
 		}
 		// memcache.incrementAll(memcacheKeys, 1, 0L);
-		// TODO is this broken method? ↑
+		// broken method ↑
 		for (String key : memcacheKeys) {
 			memcache.increment(key, 1, 0L);
 		}
