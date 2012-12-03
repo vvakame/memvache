@@ -1,8 +1,8 @@
 package net.vvakame.memvache;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -22,7 +22,7 @@ class Settings {
 	int expireSecond = 300;
 
 	/** Queryをキャッシュ"しない"Kindの一覧 */
-	Set<String> ignoreKinds = Collections.emptySet();
+	Set<String> ignoreKinds = new HashSet<String>();
 
 	static Settings singleton;
 
@@ -42,7 +42,11 @@ class Settings {
 	Settings() {
 		Properties properties = new Properties();
 		try {
-			properties.load(Settings.class.getResourceAsStream("/memvache.properties"));
+			InputStream is = Settings.class.getResourceAsStream("/memvache.properties");
+			if (is == null) {
+				return;
+			}
+			properties.load(is);
 
 			String expireSecondStr = properties.getProperty("expireSecond");
 			if (expireSecondStr != null && !"".equals(expireSecondStr)) {
