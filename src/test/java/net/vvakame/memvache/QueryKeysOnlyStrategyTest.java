@@ -151,6 +151,15 @@ public class QueryKeysOnlyStrategyTest extends ControllerTestCase {
 	 * @author vvakame
 	 */
 	@Test
+	public void queryWithReservedKind() {
+		Datastore.query("__kind__").asEntityList().size();
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
 	public void query_withKeysOnly() {
 		{
 			Entity entity = new Entity("hoge", 1);
