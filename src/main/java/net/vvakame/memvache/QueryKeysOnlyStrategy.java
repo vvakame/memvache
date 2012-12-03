@@ -32,6 +32,9 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 		if (requestPb.isKeysOnly()) {
 			return null;
 		}
+		if (requestPb.getKind().startsWith("__")) {
+			return null;
+		}
 
 		requestPb.setKeysOnly(true);
 		rewritedQuery.add(requestPb);
