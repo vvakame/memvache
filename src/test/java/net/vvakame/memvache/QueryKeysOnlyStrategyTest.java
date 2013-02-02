@@ -3,8 +3,12 @@ package net.vvakame.memvache;
 import java.util.List;
 import java.util.Map;
 
+import net.vvakame.memvache.test.TestKind;
+import net.vvakame.memvache.test.TestKindMeta;
+
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
+import org.slim3.datastore.S3QueryResultList;
 import org.slim3.tester.ControllerTestCase;
 
 import com.google.appengine.api.datastore.Entity;
@@ -160,25 +164,100 @@ public class QueryKeysOnlyStrategyTest extends ControllerTestCase {
 	 * @author vvakame
 	 */
 	@Test
-	public void query_withKeysOnly() {
-		{
-			Entity entity = new Entity("hoge", 1);
-			entity.setProperty("v", "val1");
-			Datastore.put(entity);
+	public void case_withCursor() {
+		// Memvache有無でCursorその他の値に差が出ないことを確認
+		final TestKindMeta meta = TestKindMeta.get();
+		for (int i = 1; i <= 200; i++) {
+			TestKind test = new TestKind();
+			test.setKey(Datastore.createKey(meta, i));
+			test.setStr("v" + (i % 10));
+			test.setKeyStr(String.valueOf(i));
+			Datastore.put(test);
 		}
+		memvacheDelegate.uninstall();
+
+		String encodedCursor;
+		String encodedFilter;
+		String encodedSorts;
 		{
-			Entity entity = new Entity("hoge", 2);
-			entity.setProperty("v", "val2");
-			Datastore.put(entity);
-		}
-		{
-			Entity entity = new Entity("hoge", 3);
-			entity.setProperty("v", "val3");
-			Datastore.put(entity);
+			S3QueryResultList<TestKind> data =
+					Datastore.query(meta).filter(meta.str.equal("v1")).limit(10)
+						.asQueryResultList();
+			encodedCursor = data.getEncodedCursor();
+			encodedFilter = data.getEncodedFilter();
+			encodedSorts = data.getEncodedSorts();
+			assertThat(data.size(), is(10));
+			for (TestKind testKind : data) {
+				assertThat(testKind.getKeyStr(), is(String.valueOf(testKind.getKey().getId())));
+			}
 		}
 
-		List<Entity> entityList = Datastore.query("hoge").asEntityList();
-		entityList.iterator().next();
+		memvacheDelegate = MemvacheDelegate.install();
+
+		{
+			S3QueryResultList<TestKind> data =
+					Datastore.query(meta).filter(meta.str.equal("v1")).limit(10)
+						.asQueryResultList();
+			assertThat("same as no memvache", data.getEncodedCursor(), is(encodedCursor));
+			assertThat("same as no memvache", data.getEncodedFilter(), is(encodedFilter));
+			assertThat("same as no memvache", data.getEncodedSorts(), is(encodedSorts));
+			assertThat(data.size(), is(10));
+			for (TestKind testKind : data) {
+				assertThat(testKind.getKeyStr(), is(String.valueOf(testKind.getKey().getId())));
+			}
+		}
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void case_withCursor_iterate() {
+		// Memvache有無でCursorその他の値に差が出ないことを確認
+		final TestKindMeta meta = TestKindMeta.get();
+		for (int i = 1; i <= 200; i++) {
+			TestKind test = new TestKind();
+			test.setKey(Datastore.createKey(meta, i));
+			test.setStr("v" + (i % 10));
+			test.setKeyStr(String.valueOf(i));
+			Datastore.put(test);
+		}
+
+		S3QueryResultList<TestKind> data;
+		{
+			data = Datastore.query(meta).filter(meta.str.equal("v1")).limit(10).asQueryResultList();
+			assertThat(data.size(), is(10));
+			for (TestKind testKind : data) {
+				assertThat(testKind.getKeyStr(), is(String.valueOf(testKind.getKey().getId())));
+			}
+		}
+		{
+			String encodedCursor = data.getEncodedCursor();
+			String encodedFilter = data.getEncodedFilter();
+			String encodedSorts = data.getEncodedSorts();
+			data =
+					Datastore.query(meta).encodedStartCursor(encodedCursor)
+						.encodedFilter(encodedFilter).encodedSorts(encodedSorts).limit(3)
+						.asQueryResultList();
+			assertThat(data.size(), is(3));
+			for (TestKind testKind : data) {
+				assertThat(testKind.getKeyStr(), is(String.valueOf(testKind.getKey().getId())));
+			}
+		}
+		{
+			String encodedCursor = data.getEncodedCursor();
+			String encodedFilter = data.getEncodedFilter();
+			String encodedSorts = data.getEncodedSorts();
+			data =
+					Datastore.query(meta).encodedStartCursor(encodedCursor)
+						.encodedFilter(encodedFilter).encodedSorts(encodedSorts)
+						.asQueryResultList();
+			assertThat(data.size(), is(20 - 10 - 3));
+			for (TestKind testKind : data) {
+				assertThat(testKind.getKeyStr(), is(String.valueOf(testKind.getKey().getId())));
+			}
+		}
 	}
 
 	@Override

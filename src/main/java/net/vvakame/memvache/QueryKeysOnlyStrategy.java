@@ -100,6 +100,7 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 		}
 
 		// TODO compiledQuery, compiledCursor, cursor, index, indexOnly …etcについてKeysOnlyにしたことで挙動が変わるかを調査しないとアカン。
+		// TODO RunCompiledQuery, Next のmethodについても調査が必要かなぁ…
 
 		return responsePb.toByteArray();
 	}
