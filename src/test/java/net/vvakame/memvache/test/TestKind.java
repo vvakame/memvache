@@ -19,6 +19,9 @@ public class TestKind {
 
 	String keyStr;
 
+	@Attribute(lob = true)
+	byte[] data;
+
 
 	/**
 	 * @return the key
@@ -66,5 +69,21 @@ public class TestKind {
 	 */
 	public void setKeyStr(String keyStr) {
 		this.keyStr = keyStr;
+	}
+
+	/**
+	 * @return the data
+	 * @category accessor
+	 */
+	public byte[] getData() {
+		return data;
+	}
+
+	/**
+	 * @param data the data to set
+	 * @category accessor
+	 */
+	public void setData(byte[] data) {
+		this.data = data;
 	}
 }
