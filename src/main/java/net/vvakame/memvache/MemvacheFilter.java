@@ -11,8 +11,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
-import org.slim3.util.StringUtil;
-
 /**
  * {@link MemvacheDelegate} を適用するための {@link Filter}。
  * @author vvakame
@@ -30,16 +28,16 @@ public class MemvacheFilter implements Filter {
 
 		try {
 			String getPutCache = filterConfig.getInitParameter("enableGetPutCacheStrategy");
-			if (!StringUtil.isEmpty(getPutCache)) {
+			if (!isEmpty(getPutCache)) {
 				enableGetPutCache = Boolean.valueOf(getPutCache);
 			}
 			String queryKeysOnly = filterConfig.getInitParameter("enableQueryKeysOnlyStrategy");
-			if (!StringUtil.isEmpty(queryKeysOnly)) {
+			if (!isEmpty(queryKeysOnly)) {
 				enableQueryKeysOnly = Boolean.valueOf(queryKeysOnly);
 			}
 			String aggressiveQueryCache =
 					filterConfig.getInitParameter("enableAggressiveQueryCacheStrategy");
-			if (!StringUtil.isEmpty(aggressiveQueryCache)) {
+			if (!isEmpty(aggressiveQueryCache)) {
 				enableAggressiveQueryCache = Boolean.valueOf(aggressiveQueryCache);
 			}
 		} catch (Exception e) {
@@ -100,5 +98,9 @@ public class MemvacheFilter implements Filter {
 
 	@Override
 	public void destroy() {
+	}
+
+	static boolean isEmpty(String str) {
+		return str == null || "".equals(str);
 	}
 }

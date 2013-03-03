@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.slim3.datastore.Attribute;
-import org.slim3.datastore.Model;
 
 import com.google.appengine.api.datastore.Key;
 
@@ -12,7 +11,7 @@ import com.google.appengine.api.datastore.Key;
  * テスト用のKind.
  * @author vvakame
  */
-@Model
+// @Model mvn clean test が通るように
 public class TestKind {
 
 	@Attribute(primaryKey = true)
