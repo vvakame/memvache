@@ -1,7 +1,9 @@
 package net.vvakame.memvache;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +31,20 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	List<Strategy> strategies = new ArrayList<Strategy>(3);
 
+	static Set<Class<? extends Strategy>> enabledStrategies =
+			new LinkedHashSet<Class<? extends Strategy>>();
+
+	static {
+		staticInitialize();
+	}
+
+
+	static void staticInitialize() {
+		enabledStrategies.clear();
+		addStrategy(AggressiveQueryCacheStrategy.class);
+		addStrategy(QueryKeysOnlyStrategy.class);
+		addStrategy(GetPutCacheStrategy.class);
+	}
 
 	/**
 	 * 現在のスレッドに紐付いている {@link MemvacheDelegate} を取得する。
@@ -55,22 +71,46 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
 		if (originalDelegate instanceof MemvacheDelegate == false) {
 			MemvacheDelegate newDelegate = new MemvacheDelegate(originalDelegate);
-			cleanUpStrategies(newDelegate);
+			setupStrategies(newDelegate);
 			ApiProxy.setDelegate(newDelegate);
 			localThis.set(newDelegate);
 			return newDelegate;
 		} else {
 			MemvacheDelegate delegate = (MemvacheDelegate) originalDelegate;
-			cleanUpStrategies(delegate);
+			setupStrategies(delegate);
 			return delegate;
 		}
 	}
 
-	static void cleanUpStrategies(MemvacheDelegate memvache) {
+	/**
+	 * キャッシュに利用する戦略を追加する。
+	 * @param clazz 追加する戦略
+	 * @author vvakame
+	 */
+	public static void addStrategy(Class<? extends Strategy> clazz) {
+		enabledStrategies.add(clazz);
+	}
+
+	/**
+	 * キャッシュに利用する戦略を削除する。
+	 * @param clazz 削除する戦略
+	 * @author vvakame
+	 */
+	public static void removeStrategy(Class<? extends Strategy> clazz) {
+		enabledStrategies.remove(clazz);
+	}
+
+	static void setupStrategies(MemvacheDelegate memvache) {
 		memvache.strategies.clear();
-		memvache.strategies.add(new AggressiveQueryCacheStrategy());
-		memvache.strategies.add(new QueryKeysOnlyStrategy());
-		memvache.strategies.add(new GetPutCacheStrategy());
+		try {
+			for (Class<? extends Strategy> clazz : enabledStrategies) {
+				memvache.strategies.add(clazz.newInstance());
+			}
+		} catch (InstantiationException e) {
+			throw new RuntimeException(e);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
