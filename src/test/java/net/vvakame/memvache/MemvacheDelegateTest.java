@@ -49,7 +49,7 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 		System.out.println("modelList putted");
 		Memcache.cleanAll();
 
-		List<TestKind> list = Datastore.query(meta).asList();
+		List<TestKind> list = Datastore.query(meta).prefetchSize(20).asList();
 		assertThat(list.size(), is(400));
 	}
 

@@ -33,6 +33,11 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 			return null;
 		}
 
+		// datastore_v3#Next を回避するためにprefetchSizeが設定されていない場合大きめに設定する。
+		if (requestPb.getCount() == 0) {
+			requestPb.setCount(1000);
+		}
+
 		final MemcacheService memcache = MemvacheDelegate.getMemcache();
 		String memcacheKey = MemcacheKeyUtil.createQueryKey(memcache, requestPb);
 
@@ -40,7 +45,7 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 		if (response != null) {
 			return Pair.response(response.toByteArray());
 		} else {
-			return null;
+			return Pair.request(requestPb.toByteArray());
 		}
 	}
 
