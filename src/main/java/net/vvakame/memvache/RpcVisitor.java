@@ -13,12 +13,19 @@ import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementRequ
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetResponse;
+import com.google.appengine.api.search.SearchServicePb.DeleteDocumentRequest;
+import com.google.appengine.api.search.SearchServicePb.DeleteDocumentResponse;
+import com.google.appengine.api.search.SearchServicePb.IndexDocumentRequest;
+import com.google.appengine.api.search.SearchServicePb.IndexDocumentResponse;
+import com.google.appengine.api.search.SearchServicePb.SearchRequest;
+import com.google.appengine.api.search.SearchServicePb.SearchResponse;
 import com.google.apphosting.api.DatastorePb.BeginTransactionRequest;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.DeleteResponse;
 import com.google.apphosting.api.DatastorePb.GetRequest;
 import com.google.apphosting.api.DatastorePb.GetResponse;
+import com.google.apphosting.api.DatastorePb.NextRequest;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.PutResponse;
 import com.google.apphosting.api.DatastorePb.Query;
@@ -68,6 +75,10 @@ public class RpcVisitor implements Strategy {
 			Query requestPb = new Query();
 			requestPb.mergeFrom(request);
 			return pre_datastore_v3_RunQuery(requestPb);
+		} else if ("datastore_v3".equals(service) && "Next".equals(method)) {
+			NextRequest requestPb = new NextRequest();
+			requestPb.mergeFrom(request);
+			return pre_datastore_v3_Next(requestPb);
 		} else if ("datastore_v3".equals(service) && "Commit".equals(method)) {
 			Transaction requestPb = new Transaction();
 			requestPb.mergeFrom(request);
@@ -109,6 +120,27 @@ public class RpcVisitor implements Strategy {
 			try {
 				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(request);
 				return pre_memcache_Increment(requestPb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "IndexDocument".equals(method)) {
+			try {
+				IndexDocumentRequest requestPb = IndexDocumentRequest.parseFrom(request);
+				return pre_search_IndexDocument(requestPb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "Search".equals(method)) {
+			try {
+				SearchRequest requestPb = SearchRequest.parseFrom(request);
+				return pre_search_Search(requestPb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "DeleteDocument".equals(method)) {
+			try {
+				DeleteDocumentRequest requestPb = DeleteDocumentRequest.parseFrom(request);
+				return pre_search_DeleteDocument(requestPb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
@@ -163,6 +195,12 @@ public class RpcVisitor implements Strategy {
 			QueryResult responsePb = new QueryResult();
 			responsePb.mergeFrom(response);
 			return post_datastore_v3_RunQuery(requestPb, responsePb);
+		} else if ("datastore_v3".equals(service) && "Next".equals(method)) {
+			NextRequest requestPb = new NextRequest();
+			requestPb.mergeFrom(request);
+			QueryResult responsePb = new QueryResult();
+			responsePb.mergeFrom(response);
+			return post_datastore_v3_Next(requestPb, responsePb);
 		} else if ("datastore_v3".equals(service) && "Commit".equals(method)) {
 			Transaction requestPb = new Transaction();
 			requestPb.mergeFrom(request);
@@ -215,6 +253,30 @@ public class RpcVisitor implements Strategy {
 				MemcacheIncrementResponse responsePb =
 						MemcacheIncrementResponse.parseFrom(response);
 				return post_memcache_Increment(requestPb, responsePb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "IndexDocument".equals(method)) {
+			try {
+				IndexDocumentRequest requestPb = IndexDocumentRequest.parseFrom(request);
+				IndexDocumentResponse responsePb = IndexDocumentResponse.parseFrom(response);
+				return post_search_IndexDocument(requestPb, responsePb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "Search".equals(method)) {
+			try {
+				SearchRequest requestPb = SearchRequest.parseFrom(request);
+				SearchResponse responsePb = SearchResponse.parseFrom(response);
+				return post_search_Search(requestPb, responsePb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
+			}
+		} else if ("search".equals(service) && "DeleteDocument".equals(method)) {
+			try {
+				DeleteDocumentRequest requestPb = DeleteDocumentRequest.parseFrom(request);
+				DeleteDocumentResponse responsePb = DeleteDocumentResponse.parseFrom(response);
+				return post_search_DeleteDocument(requestPb, responsePb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
@@ -328,6 +390,27 @@ public class RpcVisitor implements Strategy {
 	 * @author vvakame
 	 */
 	public byte[] post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのNextの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_datastore_v3_Next(NextRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのNextの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_datastore_v3_Next(NextRequest requestPb, QueryResult responsePb) {
 		return null;
 	}
 
@@ -478,6 +561,71 @@ public class RpcVisitor implements Strategy {
 	 */
 	public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
 			MemcacheIncrementResponse responsePb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのIndexDocumentの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_search_IndexDocument(IndexDocumentRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのIndexDocumentの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_search_IndexDocument(IndexDocumentRequest requestPb,
+			IndexDocumentResponse responsePb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのSearchの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_search_Search(SearchRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのSearchの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_search_Search(SearchRequest requestPb, SearchResponse responsePb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのDeleteDocumentの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_search_DeleteDocument(DeleteDocumentRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * Search APIのDeleteDocumentの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_search_DeleteDocument(DeleteDocumentRequest requestPb,
+			DeleteDocumentResponse responsePb) {
 		return null;
 	}
 }

@@ -205,6 +205,21 @@ public class AggressiveQueryCacheStrategyTest extends ControllerTestCase {
 		assertThat(query.asEntityList().size(), is(2));
 	}
 
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void prefetchSize() {
+		for (int i = 1; i <= 2; i++) {
+			Entity child = new Entity("kind", i);
+			Datastore.put(child);
+		}
+		EntityQuery query = Datastore.query("kind");
+		// query.prefetchSize(1000);
+		assertThat(query.asEntityList().size(), is(2));
+	}
+
 	@Override
 	public void setUp() throws Exception {
 		super.setUp();

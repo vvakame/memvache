@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb.NextRequest;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.Query;
 import com.google.apphosting.api.DatastorePb.QueryResult;
@@ -32,6 +33,11 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 			return null;
 		}
 
+		// datastore_v3#Next を回避するためにprefetchSizeが設定されていない場合大きめに設定する。
+		if (requestPb.getCount() == 0) {
+			requestPb.setCount(1000);
+		}
+
 		final MemcacheService memcache = MemvacheDelegate.getMemcache();
 		String memcacheKey = MemcacheKeyUtil.createQueryKey(memcache, requestPb);
 
@@ -39,7 +45,7 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 		if (response != null) {
 			return Pair.response(response.toByteArray());
 		} else {
-			return null;
+			return Pair.request(requestPb.toByteArray());
 		}
 	}
 
@@ -120,5 +126,15 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public Pair<byte[], byte[]> pre_datastore_v3_Next(NextRequest requestPb) {
+		return super.pre_datastore_v3_Next(requestPb);
+	}
+
+	@Override
+	public byte[] post_datastore_v3_Next(NextRequest requestPb, QueryResult responsePb) {
+		return super.post_datastore_v3_Next(requestPb, responsePb);
 	}
 }
