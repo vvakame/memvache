@@ -25,6 +25,7 @@ import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.DeleteResponse;
 import com.google.apphosting.api.DatastorePb.GetRequest;
 import com.google.apphosting.api.DatastorePb.GetResponse;
+import com.google.apphosting.api.DatastorePb.NextRequest;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.PutResponse;
 import com.google.apphosting.api.DatastorePb.Query;
@@ -74,6 +75,10 @@ public class RpcVisitor implements Strategy {
 			Query requestPb = new Query();
 			requestPb.mergeFrom(request);
 			return pre_datastore_v3_RunQuery(requestPb);
+		} else if ("datastore_v3".equals(service) && "Next".equals(method)) {
+			NextRequest requestPb = new NextRequest();
+			requestPb.mergeFrom(request);
+			return pre_datastore_v3_Next(requestPb);
 		} else if ("datastore_v3".equals(service) && "Commit".equals(method)) {
 			Transaction requestPb = new Transaction();
 			requestPb.mergeFrom(request);
@@ -190,6 +195,12 @@ public class RpcVisitor implements Strategy {
 			QueryResult responsePb = new QueryResult();
 			responsePb.mergeFrom(response);
 			return post_datastore_v3_RunQuery(requestPb, responsePb);
+		} else if ("datastore_v3".equals(service) && "Next".equals(method)) {
+			NextRequest requestPb = new NextRequest();
+			requestPb.mergeFrom(request);
+			QueryResult responsePb = new QueryResult();
+			responsePb.mergeFrom(response);
+			return post_datastore_v3_Next(requestPb, responsePb);
 		} else if ("datastore_v3".equals(service) && "Commit".equals(method)) {
 			Transaction requestPb = new Transaction();
 			requestPb.mergeFrom(request);
@@ -379,6 +390,27 @@ public class RpcVisitor implements Strategy {
 	 * @author vvakame
 	 */
 	public byte[] post_datastore_v3_RunQuery(Query requestPb, QueryResult responsePb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのNextの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_datastore_v3_Next(NextRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのNextの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_datastore_v3_Next(NextRequest requestPb, QueryResult responsePb) {
 		return null;
 	}
 

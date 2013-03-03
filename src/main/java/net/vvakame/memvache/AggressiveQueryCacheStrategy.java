@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb.NextRequest;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.Query;
 import com.google.apphosting.api.DatastorePb.QueryResult;
@@ -120,5 +121,15 @@ class AggressiveQueryCacheStrategy extends RpcVisitor {
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public Pair<byte[], byte[]> pre_datastore_v3_Next(NextRequest requestPb) {
+		return super.pre_datastore_v3_Next(requestPb);
+	}
+
+	@Override
+	public byte[] post_datastore_v3_Next(NextRequest requestPb, QueryResult responsePb) {
+		return super.post_datastore_v3_Next(requestPb, responsePb);
 	}
 }

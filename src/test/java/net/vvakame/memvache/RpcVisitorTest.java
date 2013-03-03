@@ -1,7 +1,11 @@
 package net.vvakame.memvache;
 
+import net.vvakame.memvache.test.TestKind;
+import net.vvakame.memvache.test.TestKindMeta;
+
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
+import org.slim3.datastore.S3QueryResultList;
 import org.slim3.tester.ControllerTestCase;
 
 import com.google.appengine.api.NamespaceManager;
@@ -84,6 +88,29 @@ public class RpcVisitorTest extends ControllerTestCase {
 		Query query = new Query(key2_1_3);
 		DatastoreServiceFactory.getDatastoreService().prepare(query)
 			.asList(FetchOptions.Builder.withDefaults());
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void datastore_v3_Next() {
+		Key parentKey = Datastore.createKey("hoge", 1);
+		for (int i = 1; i <= 1000; i++) {
+			Key key = Datastore.createKey(parentKey, TestKind.class, i);
+			TestKind testKind = new TestKind();
+			testKind.setKey(key);
+			Datastore.put(testKind);
+		}
+
+		final TestKindMeta meta = TestKindMeta.get();
+
+		S3QueryResultList<TestKind> list =
+				Datastore.query(meta, parentKey).filter(meta.strList.in("hoge"))
+					.sort(meta.str.desc).limit(10).asQueryResultList();
+		Datastore.query(meta, parentKey).encodedStartCursor(list.getEncodedCursor()).asList()
+			.size();
 	}
 
 	/**

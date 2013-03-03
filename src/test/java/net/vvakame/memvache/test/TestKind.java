@@ -1,5 +1,8 @@
 package net.vvakame.memvache.test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slim3.datastore.Attribute;
 import org.slim3.datastore.Model;
 
@@ -21,6 +24,8 @@ public class TestKind {
 
 	@Attribute(lob = true)
 	byte[] data;
+
+	List<String> strList = new ArrayList<String>();
 
 
 	/**
@@ -85,5 +90,21 @@ public class TestKind {
 	 */
 	public void setData(byte[] data) {
 		this.data = data;
+	}
+
+	/**
+	 * @return the strList
+	 * @category accessor
+	 */
+	public List<String> getStrList() {
+		return strList;
+	}
+
+	/**
+	 * @param strList the strList to set
+	 * @category accessor
+	 */
+	public void setStrList(List<String> strList) {
+		this.strList = strList;
 	}
 }
