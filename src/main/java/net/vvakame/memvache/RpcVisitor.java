@@ -41,6 +41,8 @@ public class RpcVisitor implements Strategy {
 
 	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
 
+	static boolean debug = false;
+
 
 	/**
 	 * あるRPCを行う"前"に呼び出すメソッド。<br>
@@ -144,7 +146,7 @@ public class RpcVisitor implements Strategy {
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
-		} else {
+		} else if (debug) {
 			logger.info("unknown service=" + service + ", method=" + method);
 		}
 
@@ -280,7 +282,7 @@ public class RpcVisitor implements Strategy {
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
-		} else {
+		} else if (debug) {
 			logger.info("unknown service=" + service + ", method=" + method);
 		}
 

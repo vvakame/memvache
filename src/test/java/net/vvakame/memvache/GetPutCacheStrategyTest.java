@@ -12,6 +12,8 @@ import com.google.appengine.api.datastore.EntityTranslatorPublic;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb;
+import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
 
 import static org.hamcrest.CoreMatchers.*;
 
@@ -92,7 +94,10 @@ public class GetPutCacheStrategyTest extends ControllerTestCase {
 			entity.setProperty("v1", 1);
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
 			key = entity.getKey();
-			memcache.put(key, EntityTranslatorPublic.convertToPb(entity));
+			EntityProto proto = EntityTranslatorPublic.convertToPb(entity);
+			DatastorePb.GetResponse.Entity en = new DatastorePb.GetResponse.Entity();
+			en.setEntity(proto);
+			memcache.put(key, en);
 		}
 
 		Map<String, Integer> countMap = countDelegate.countMap;

@@ -38,6 +38,7 @@ public class MemvacheFilterTest {
 				new ArrayList<Class<? extends Strategy>>(strategies);
 		assertThat(strategyList.get(0).newInstance(), instanceOf(QueryKeysOnlyStrategy.class));
 		assertThat(strategyList.get(1).newInstance(), instanceOf(GetPutCacheStrategy.class));
+		assertThat(RpcVisitor.debug, is(false));
 	}
 
 	/**
@@ -131,6 +132,23 @@ public class MemvacheFilterTest {
 				new ArrayList<Class<? extends Strategy>>(strategies);
 		assertThat(strategyList.get(0).newInstance(),
 				instanceOf(AggressiveQueryCacheStrategy.class));
+	}
+
+	/**
+	 * デバッグモード。
+	 * @throws Exception
+	 * @author vvakame
+	 */
+	@Test
+	public void enableDebugModel() throws Exception {
+		MemvacheFilter filter = new MemvacheFilter();
+
+		MockServletContext servletContext = new MockServletContext();
+		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
+		filterConfig.setInitParameter("enableDebugModel", "true");
+		filter.init(filterConfig);
+
+		assertThat(RpcVisitor.debug, is(true));
 	}
 
 	/**
