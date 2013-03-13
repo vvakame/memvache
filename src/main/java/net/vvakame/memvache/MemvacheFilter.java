@@ -26,6 +26,8 @@ public class MemvacheFilter implements Filter {
 		boolean enableQueryKeysOnly = true;
 		boolean enableAggressiveQueryCache = false;
 
+		boolean debug = false;
+
 		try {
 			String getPutCache = filterConfig.getInitParameter("enableGetPutCacheStrategy");
 			if (!isEmpty(getPutCache)) {
@@ -39,6 +41,10 @@ public class MemvacheFilter implements Filter {
 					filterConfig.getInitParameter("enableAggressiveQueryCacheStrategy");
 			if (!isEmpty(aggressiveQueryCache)) {
 				enableAggressiveQueryCache = Boolean.valueOf(aggressiveQueryCache);
+			}
+			String debugMode = filterConfig.getInitParameter("enableDebugModel");
+			if (!isEmpty(debugMode)) {
+				debug = Boolean.valueOf(debugMode);
 			}
 		} catch (Exception e) {
 		}
@@ -57,6 +63,7 @@ public class MemvacheFilter implements Filter {
 		} else {
 			MemvacheDelegate.removeStrategy(AggressiveQueryCacheStrategy.class);
 		}
+		RpcVisitor.debug = debug;
 	}
 
 	@Override

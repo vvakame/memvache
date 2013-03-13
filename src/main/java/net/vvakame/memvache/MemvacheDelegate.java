@@ -44,6 +44,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 		addStrategy(AggressiveQueryCacheStrategy.class);
 		addStrategy(QueryKeysOnlyStrategy.class);
 		addStrategy(GetPutCacheStrategy.class);
+		RpcVisitor.debug = false;
 	}
 
 	/**
