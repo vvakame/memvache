@@ -5,8 +5,8 @@ import java.util.Map;
 
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb.GetResponse.Entity;
 import com.google.apphosting.api.DatastorePb.Query;
-import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
 
 class MemcacheKeyUtil {
 
@@ -43,10 +43,10 @@ class MemcacheKeyUtil {
 		return builder.toString();
 	}
 
-	public static Map<Key, EntityProto> conv(Map<Key, Object> map) {
-		Map<Key, EntityProto> newMap = new HashMap<Key, EntityProto>();
+	public static Map<Key, Entity> conv(Map<Key, Object> map) {
+		Map<Key, Entity> newMap = new HashMap<Key, Entity>();
 		for (Key key : map.keySet()) {
-			newMap.put(key, (EntityProto) map.get(key));
+			newMap.put(key, (Entity) map.get(key));
 		}
 
 		return newMap;

@@ -14,6 +14,8 @@ import org.slim3.tester.ControllerTestCase;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.EntityTranslatorPublic;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb;
+import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
 
 import static org.hamcrest.CoreMatchers.*;
 
@@ -69,14 +71,20 @@ public class QueryKeysOnlyStrategyTest extends ControllerTestCase {
 			entity.setProperty("v1", 1);
 			Datastore.put(entity);
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			memcache.put(entity.getKey(), EntityTranslatorPublic.convertToPb(entity));
+			EntityProto entityProto = EntityTranslatorPublic.convertToPb(entity);
+			DatastorePb.GetResponse.Entity en = new DatastorePb.GetResponse.Entity();
+			en.setEntity(entityProto);
+			memcache.put(entity.getKey(), en);
 		}
 		{
 			Entity entity = new Entity("hoge", 2);
 			entity.setProperty("v2", 2);
 			Datastore.put(entity);
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			memcache.put(entity.getKey(), EntityTranslatorPublic.convertToPb(entity));
+			EntityProto entityProto = EntityTranslatorPublic.convertToPb(entity);
+			DatastorePb.GetResponse.Entity en = new DatastorePb.GetResponse.Entity();
+			en.setEntity(entityProto);
+			memcache.put(entity.getKey(), en);
 		}
 
 		Map<String, Integer> countMap = countDelegate.countMap;
@@ -110,7 +118,10 @@ public class QueryKeysOnlyStrategyTest extends ControllerTestCase {
 			entity.setProperty("v2", 2);
 			Datastore.put(entity);
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			memcache.put(entity.getKey(), EntityTranslatorPublic.convertToPb(entity));
+			EntityProto entityProto = EntityTranslatorPublic.convertToPb(entity);
+			DatastorePb.GetResponse.Entity en = new DatastorePb.GetResponse.Entity();
+			en.setEntity(entityProto);
+			memcache.put(entity.getKey(), en);
 		}
 
 		Map<String, Integer> countMap = countDelegate.countMap;

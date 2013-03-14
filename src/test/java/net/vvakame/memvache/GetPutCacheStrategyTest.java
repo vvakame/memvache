@@ -122,7 +122,11 @@ public class GetPutCacheStrategyTest extends ControllerTestCase {
 			entity.setProperty("v1", 1);
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
 			key1 = entity.getKey();
-			memcache.put(key1, EntityTranslatorPublic.convertToPb(entity));
+			EntityProto entityProto = EntityTranslatorPublic.convertToPb(entity);
+			com.google.apphosting.api.DatastorePb.GetResponse.Entity en =
+					new DatastorePb.GetResponse.Entity();
+			en.setEntity(entityProto);
+			memcache.put(key1, en);
 		}
 
 		Key key2;
