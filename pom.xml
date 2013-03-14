@@ -4,7 +4,7 @@
 	<groupId>net.vvakame</groupId>
 	<artifactId>memvache</artifactId>
 	<packaging>jar</packaging>
-	<version>0.3.4-SNAPSHOT</version>
+	<version>0.3.4</version>
 
 	<name>Mamvache</name>
 	<description>Make a GAE billing reduction.</description>
@@ -22,7 +22,7 @@
 		<connection>scm:git:git@github.com:vvakame/memvache.git</connection>
 		<developerConnection>scm:git:git@github.com:vvakame/memvache.git</developerConnection>
 		<url>git@github.com:vvakame/memvache.git</url>
-		<tag>HEAD</tag>
+		<tag>memvache-0.3.4</tag>
 	</scm>
 
 	<developers>
