@@ -9,6 +9,7 @@ import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.EntityTranslatorPublic;
 import com.google.appengine.api.datastore.Key;
+import com.google.apphosting.api.DatastorePb;
 import com.google.apphosting.api.DatastorePb.Query;
 import com.google.apphosting.api.DatastorePb.QueryResult;
 import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
@@ -66,7 +67,7 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 		}
 
 		// MemcacheからEntity部分を取得
-		Map<Key, EntityProto> cached;
+		Map<Key, DatastorePb.GetResponse.Entity> cached;
 		{
 			Map<Key, Object> all = MemvacheDelegate.getMemcache().getAll(keys);
 			cached = MemcacheKeyUtil.conv(all);
@@ -95,7 +96,8 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 				EntityProto proto = EntityTranslatorPublic.convertToPb(batchGet.get(key));
 				responsePb.addResult(proto);
 			} else {
-				responsePb.addResult(cached.get(key));
+				DatastorePb.GetResponse.Entity entity = cached.get(key);
+				responsePb.addResult(entity.getEntity());
 			}
 		}
 
