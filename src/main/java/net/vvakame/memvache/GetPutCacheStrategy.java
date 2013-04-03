@@ -127,7 +127,7 @@ class GetPutCacheStrategy extends RpcVisitor {
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
 			final long handle = tx.getHandle();
-			Map<Key, Entity> newMap = extractCache(requestPb);
+			Map<Key, Entity> newMap = extractCache(requestPb, responsePb);
 			if (putUnderTx.containsKey(handle)) {
 				Map<Key, Entity> cached = putUnderTx.get(handle);
 				cached.putAll(newMap);
@@ -136,18 +136,23 @@ class GetPutCacheStrategy extends RpcVisitor {
 			}
 		} else {
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			Map<Key, Entity> newMap = extractCache(requestPb);
+			Map<Key, Entity> newMap = extractCache(requestPb, responsePb);
 			memcache.putAll(newMap);
 		}
 		return null;
 	}
 
-	private Map<Key, Entity> extractCache(PutRequest requestPb) {
+	private Map<Key, Entity> extractCache(PutRequest requestPb, PutResponse responsePb) {
 		Map<Key, Entity> newMap = new HashMap<Key, Entity>();
-		for (EntityProto proto : requestPb.entitys()) {
-			Key key = PbKeyUtil.toKey(proto.getKey());
+		int size = requestPb.entitySize();
+		List<EntityProto> entitys = requestPb.entitys();
+		for (int i = 0; i < size; i++) {
+			EntityProto proto = entitys.get(i);
+			Reference reference = responsePb.getKey(i);
+			Key key = PbKeyUtil.toKey(reference);
 			Entity entity = new Entity();
 			entity.setEntity(proto);
+			entity.setKey(reference);
 			newMap.put(key, entity);
 		}
 		return newMap;

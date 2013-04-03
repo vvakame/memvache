@@ -7,7 +7,10 @@ import org.slim3.datastore.Datastore;
 import org.slim3.memcache.Memcache;
 import org.slim3.tester.ControllerTestCase;
 
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.EntityNotFoundException;
 import com.google.appengine.api.datastore.EntityTranslatorPublic;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
@@ -29,6 +32,21 @@ public class GetPutCacheStrategyTest extends ControllerTestCase {
 
 	RpcCounterDelegate countDelegate;
 
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 * @throws EntityNotFoundException 
+	 */
+	@Test
+	public void put_notAllocatedId() throws EntityNotFoundException {
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		Entity entity = new Entity("hoge");
+		datastore.put(entity);
+
+		Key key = entity.getKey();
+		datastore.get(key);
+	}
 
 	/**
 	 * テストケース。
