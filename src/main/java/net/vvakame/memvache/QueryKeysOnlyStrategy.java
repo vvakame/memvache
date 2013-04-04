@@ -97,7 +97,9 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 				responsePb.addResult(proto);
 			} else {
 				DatastorePb.GetResponse.Entity entity = cached.get(key);
-				responsePb.addResult(entity.getEntity());
+				if (entity != null) {
+					responsePb.addResult(entity.getEntity());
+				}
 			}
 		}
 
