@@ -92,8 +92,9 @@ class QueryKeysOnlyStrategy extends RpcVisitor {
 		responsePb.clearResult();
 
 		for (Key key : keys) {
-			if (batchGet != null && batchGet.containsKey(key)) {
-				EntityProto proto = EntityTranslatorPublic.convertToPb(batchGet.get(key));
+			Entity entityByGet = (batchGet == null) ? null : batchGet.get(key);
+			if (entityByGet != null) {
+				EntityProto proto = EntityTranslatorPublic.convertToPb(entityByGet);
 				responsePb.addResult(proto);
 			} else {
 				DatastorePb.GetResponse.Entity entity = cached.get(key);
