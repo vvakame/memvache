@@ -4,7 +4,7 @@ package net.vvakame.memvache;
  * RPCの結果に介入するための戦略を表すインタフェース。
  * @author vvakame
  */
-interface Strategy {
+public interface Strategy {
 
 	/**
 	 * RPCをする前の書き換え戦略。
