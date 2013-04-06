@@ -42,7 +42,7 @@ public class MemvacheFilter implements Filter {
 			if (!isEmpty(aggressiveQueryCache)) {
 				enableAggressiveQueryCache = Boolean.valueOf(aggressiveQueryCache);
 			}
-			String debugMode = filterConfig.getInitParameter("enableDebugModel");
+			String debugMode = filterConfig.getInitParameter("enableDebugMode");
 			if (!isEmpty(debugMode)) {
 				debug = Boolean.valueOf(debugMode);
 			}
