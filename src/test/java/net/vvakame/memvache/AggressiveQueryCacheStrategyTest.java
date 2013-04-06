@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import net.vvakame.memvache.AggressiveQueryCacheStrategy.Settings;
+
 import org.junit.Test;
 import org.slim3.datastore.Datastore;
 import org.slim3.datastore.EntityQuery;
@@ -149,9 +151,10 @@ public class AggressiveQueryCacheStrategyTest extends ControllerTestCase {
 	 */
 	@Test
 	public void ignoreKind() {
-		Settings.getInstance().ignoreKinds.clear();
+		Settings settings = Settings.getInstance();
 
-		Settings.getInstance().ignoreKinds.add("hoge");
+		settings.ignoreKinds.clear();
+		settings.ignoreKinds.add("hoge");
 
 		assertThat(Memcache.statistics().getItemCount(), is(0L));
 
@@ -162,7 +165,7 @@ public class AggressiveQueryCacheStrategyTest extends ControllerTestCase {
 		Datastore.query("fuga").asEntityList().size();
 		assertThat(Memcache.statistics().getItemCount(), is(1L));
 
-		Settings.getInstance().ignoreKinds.clear();
+		settings.ignoreKinds.clear();
 	}
 
 	/**
