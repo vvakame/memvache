@@ -7,7 +7,7 @@ package net.vvakame.memvache;
  * @param <Req> 改変したリクエスト
  * @param <Resp> 生成したレスポンス
  */
-class Pair<Req, Resp> {
+public class Pair<Req, Resp> {
 
 	/** リクエストの改変データ */
 	final public Req request;
