@@ -145,7 +145,7 @@ public class MemvacheFilterTest {
 
 		MockServletContext servletContext = new MockServletContext();
 		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
-		filterConfig.setInitParameter("enableDebugModel", "true");
+		filterConfig.setInitParameter("enableDebugMode", "true");
 		filter.init(filterConfig);
 
 		assertThat(RpcVisitor.debug, is(true));

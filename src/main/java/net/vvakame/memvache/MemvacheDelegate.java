@@ -25,8 +25,6 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
 
-	final static Settings settings = Settings.getInstance();
-
 	final ApiProxy.Delegate<Environment> parent;
 
 	List<Strategy> strategies = new ArrayList<Strategy>(3);
