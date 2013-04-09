@@ -68,11 +68,15 @@ class GetPutCacheStrategy extends RpcVisitor {
 		// もし全部取れた場合は Get動作を行わず結果を構成して返す。
 		if (requestKeys.size() == data.size()) {
 			GetResponse responsePb = new GetResponse();
-			// toByteArray() を呼んだ時にNPEが発生するのを抑制するために内部的にnew ArrayList() させる
+			// toByteArray() を呼んだ時にNPEが発生するのを抑制するために内部的に new ArrayList() させる
 			responsePb.mutableEntitys();
 			responsePb.mutableDeferreds();
 			for (Key key : requestKeys) {
 				Entity entity = data.get(key);
+				if (entity == null) {
+					data.remove(key);
+					continue;
+				}
 				responsePb.addEntity(entity);
 			}
 
