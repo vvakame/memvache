@@ -50,23 +50,33 @@ class GetPutCacheStrategy extends RpcVisitor {
 			return null;
 		}
 
-		final MemcacheService memcache = MemvacheDelegate.getMemcache();
 		requestKeys = PbKeyUtil.toKeys(requestPb.keys());
 
 		// Memcacheにあるものはキャッシュで済ませる
 		{
+			final MemcacheService memcache = MemvacheDelegate.getMemcache();
 			Map<Key, Object> all = memcache.getAll(requestKeys); // 存在しなかった場合Keyごと無い
 			data = new HashMap<Key, Entity>();
 			for (Key key : all.keySet()) {
-				data.put(key, (Entity) all.get(key));
+				Entity entity = (Entity) all.get(key);
+				if (entity != null) {
+					data.put(key, entity);
+				}
 			}
 		}
 
 		// もし全部取れた場合は Get動作を行わず結果を構成して返す。
 		if (requestKeys.size() == data.size()) {
 			GetResponse responsePb = new GetResponse();
+			// toByteArray() を呼んだ時にNPEが発生するのを抑制するために内部的に new ArrayList() させる
+			responsePb.mutableEntitys();
+			responsePb.mutableDeferreds();
 			for (Key key : requestKeys) {
 				Entity entity = data.get(key);
+				if (entity == null) {
+					data.remove(key);
+					continue;
+				}
 				responsePb.addEntity(entity);
 			}
 
