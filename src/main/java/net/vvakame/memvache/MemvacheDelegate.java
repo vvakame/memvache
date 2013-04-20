@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
@@ -23,11 +24,13 @@ import com.google.apphosting.api.ApiProxy.LogRecord;
  */
 public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
+	static final Logger logger = Logger.getLogger(MemvacheDelegate.class.getName());
+
 	static final ThreadLocal<MemvacheDelegate> localThis = new ThreadLocal<MemvacheDelegate>();
 
 	final ApiProxy.Delegate<Environment> parent;
 
-	List<Strategy> strategies = new ArrayList<Strategy>(3);
+	ThreadLocal<List<Strategy>> strategies = new ThreadLocal<List<Strategy>>();
 
 	static Set<Class<? extends Strategy>> enabledStrategies =
 			new LinkedHashSet<Class<? extends Strategy>>();
@@ -100,10 +103,16 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	}
 
 	static void setupStrategies(MemvacheDelegate memvache) {
-		memvache.strategies.clear();
+		List<Strategy> strategies = memvache.strategies.get();
+		if (strategies == null) {
+			strategies = new ArrayList<Strategy>(3);
+			memvache.strategies.set(strategies);
+		} else {
+			strategies.clear();
+		}
 		try {
 			for (Class<? extends Strategy> clazz : enabledStrategies) {
-				memvache.strategies.add(clazz.newInstance());
+				strategies.add(clazz.newInstance());
 			}
 		} catch (InstantiationException e) {
 			throw new RuntimeException(e);
@@ -141,6 +150,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	Future<byte[]> processAsyncCall(Environment env, final String service, final String method,
 			final byte[] requestBytes, ApiConfig config, int depth) {
+		List<Strategy> strategies = this.strategies.get();
 
 		// 適用すべき戦略がなかったら実際のRPCを行う
 		if (strategies.size() == depth) {
@@ -193,6 +203,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	byte[] processSyncCall(Environment env, String service, String method, byte[] requestBytes,
 			int depth) {
+		List<Strategy> strategies = this.strategies.get();
 
 		// 適用すべき戦略がなかったら実際のRPCを行う
 		if (strategies.size() == depth) {
