@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
-
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushRequest;
@@ -294,6 +293,11 @@ public class DebugDelegate implements Delegate<Environment> {
 				MemcacheIncrementResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_memcache_Increment(requestPb, responsePb);
+		}
+
+		@Override
+		public int getPriority() {
+			return 0;
 		}
 	};
 

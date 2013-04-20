@@ -22,7 +22,16 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
  * Datastore への Query をKeysOnlyに書き換え、取れたKeyに対してMemcacheに照会を実施し不足分についてBatchGetを行う戦略を実装する。
  * @author vvakame
  */
-class QueryKeysOnlyStrategy extends RpcVisitor {
+public class QueryKeysOnlyStrategy extends RpcVisitor {
+
+	static final int PRIORITY = AggressiveQueryCacheStrategy.PRIORITY + 1000;
+
+
+	@Override
+	public int getPriority() {
+		return PRIORITY;
+	}
+
 
 	List<Query> rewritedQuery = new ArrayList<Query>();
 

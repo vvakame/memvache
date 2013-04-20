@@ -42,7 +42,7 @@ import com.google.apphosting.api.DatastorePb.Transaction;
  * {@link #preProcess(String, String, byte[])} と {@link #postProcess(String, String, byte[], byte[])} が入り口。
  * @author vvakame
  */
-public class RpcVisitor implements Strategy {
+public abstract class RpcVisitor implements Strategy {
 
 	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
 

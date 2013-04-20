@@ -23,7 +23,16 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
  * EntityがGetされる時はTx有りの時は素通し、それ以外の時はMemcacheを参照して無ければDatastoreへ。
  * @author vvakame
  */
-class GetPutCacheStrategy extends RpcVisitor {
+public class GetPutCacheStrategy extends RpcVisitor {
+
+	static final int PRIORITY = QueryKeysOnlyStrategy.PRIORITY + 1000;
+
+
+	@Override
+	public int getPriority() {
+		return PRIORITY;
+	}
+
 
 	/** オリジナルのリクエストが要求しているKeyの一覧, リクエスト毎 */
 	Map<GetRequest, List<Key>> requestKeysMap = new HashMap<GetRequest, List<Key>>();

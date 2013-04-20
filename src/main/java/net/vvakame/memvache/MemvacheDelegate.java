@@ -1,6 +1,8 @@
 package net.vvakame.memvache;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +33,8 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	final ApiProxy.Delegate<Environment> parent;
 
 	ThreadLocal<List<Strategy>> strategies = new ThreadLocal<List<Strategy>>();
+
+	static final Comparator<Strategy> strategyComparator = new StrategyComparator();
 
 	static Set<Class<? extends Strategy>> enabledStrategies =
 			new LinkedHashSet<Class<? extends Strategy>>();
@@ -114,6 +118,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 			for (Class<? extends Strategy> clazz : enabledStrategies) {
 				strategies.add(clazz.newInstance());
 			}
+			Collections.sort(strategies, strategyComparator);
 		} catch (InstantiationException e) {
 			throw new RuntimeException(e);
 		} catch (IllegalAccessException e) {
@@ -311,5 +316,14 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	 */
 	public ApiProxy.Delegate<Environment> getParent() {
 		return parent;
+	}
+
+
+	static class StrategyComparator implements Comparator<Strategy> {
+
+		@Override
+		public int compare(Strategy s1, Strategy s2) {
+			return s1.getPriority() - s2.getPriority();
+		}
 	}
 }

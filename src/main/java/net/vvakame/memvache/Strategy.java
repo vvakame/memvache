@@ -7,6 +7,14 @@ package net.vvakame.memvache;
 public interface Strategy {
 
 	/**
+	 * 戦略適用時の優先順位。<br>
+	 * 戦略はこの値が小さい順に適用されていく。
+	 * @return 優先度
+	 * @author vvakame
+	 */
+	public int getPriority();
+
+	/**
 	 * RPCをする前の書き換え戦略。
 	 * @param service
 	 * @param method
