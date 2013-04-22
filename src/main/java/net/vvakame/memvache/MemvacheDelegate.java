@@ -156,6 +156,10 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	Future<byte[]> processAsyncCall(Environment env, final String service, final String method,
 			final byte[] requestBytes, ApiConfig config, int depth) {
 		List<Strategy> strategies = this.strategies.get();
+		if (strategies == null) {
+			// 開発環境だと別スレッドで動作している場合があるみたい？
+			return getParent().makeAsyncCall(env, service, method, requestBytes, config);
+		}
 
 		// 適用すべき戦略がなかったら実際のRPCを行う
 		if (strategies.size() == depth) {
@@ -209,6 +213,10 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	byte[] processSyncCall(Environment env, String service, String method, byte[] requestBytes,
 			int depth) {
 		List<Strategy> strategies = this.strategies.get();
+		if (strategies == null) {
+			// 開発環境だと別スレッドで動作している場合があるみたい？
+			return getParent().makeSyncCall(env, service, method, requestBytes);
+		}
 
 		// 適用すべき戦略がなかったら実際のRPCを行う
 		if (strategies.size() == depth) {
