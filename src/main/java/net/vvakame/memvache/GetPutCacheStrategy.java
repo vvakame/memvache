@@ -23,15 +23,25 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
  * EntityがGetされる時はTx有りの時は素通し、それ以外の時はMemcacheを参照して無ければDatastoreへ。
  * @author vvakame
  */
-class GetPutCacheStrategy extends RpcVisitor {
+public class GetPutCacheStrategy extends RpcVisitor {
 
-	// TODO Asyncを絡めて2回Getした時 pre_Get, pre_Get, post_Get, post_Get という順で動くとバグるのではないか？
+	static final int PRIORITY = QueryKeysOnlyStrategy.PRIORITY + 1000;
 
-	/** オリジナルのリクエストが要求しているKeyの一覧 */
-	List<Key> requestKeys;
 
-	/** Memcacheが持っていたEntityのキャッシュ */
-	Map<Key, Entity> data;
+	@Override
+	public int getPriority() {
+		return PRIORITY;
+	}
+
+
+	/** オリジナルのリクエストが要求しているKeyの一覧, リクエスト毎 */
+	Map<GetRequest, List<Key>> requestKeysMap = new HashMap<GetRequest, List<Key>>();
+
+	/** Memcacheが持っていたEntityのキャッシュ, リクエスト毎 */
+	Map<GetRequest, Map<Key, Entity>> dataMap = new HashMap<GetRequest, Map<Key, Entity>>();
+
+	/** 同一操作を行ったカウント数, リクエスト毎 */
+	Map<GetRequest, Integer> requestCountMap = new HashMap<GetRequest, Integer>();
 
 	Map<Long, Map<Key, Entity>> putUnderTx = new HashMap<Long, Map<Key, Entity>>();
 
@@ -50,13 +60,13 @@ class GetPutCacheStrategy extends RpcVisitor {
 			return null;
 		}
 
-		requestKeys = PbKeyUtil.toKeys(requestPb.keys());
+		List<Key> requestKeys = PbKeyUtil.toKeys(requestPb.keys());
+		Map<Key, Entity> data = new HashMap<Key, Entity>();
 
 		// Memcacheにあるものはキャッシュで済ませる
 		{
 			final MemcacheService memcache = MemvacheDelegate.getMemcache();
 			Map<Key, Object> all = memcache.getAll(requestKeys); // 存在しなかった場合Keyごと無い
-			data = new HashMap<Key, Entity>();
 			for (Key key : all.keySet()) {
 				Entity entity = (Entity) all.get(key);
 				if (entity != null) {
@@ -90,7 +100,23 @@ class GetPutCacheStrategy extends RpcVisitor {
 			}
 		}
 
-		return Pair.request(requestPb.toByteArray());
+		// post_datastore_v3_Getで渡されるrequestPbは再構成後のものなので
+		byte[] reconstructured = requestPb.toByteArray();
+		{
+			GetRequest reconstRequest = new GetRequest();
+			reconstRequest.mergeFrom(reconstructured);
+			requestKeysMap.put(reconstRequest, requestKeys);
+			dataMap.put(reconstRequest, data);
+			Integer count = requestCountMap.get(reconstRequest);
+			if (count == null) {
+				count = 1;
+			} else {
+				count += 1;
+			}
+			requestCountMap.put(reconstRequest, count);
+		}
+
+		return Pair.request(reconstructured);
 	}
 
 	/**
@@ -119,6 +145,20 @@ class GetPutCacheStrategy extends RpcVisitor {
 		memcache.putAll(newMap);
 
 		// ここで取れてきているのはキャッシュにないヤツだけなので再構成して返す必要がある
+		Map<Key, Entity> data;
+		List<Key> requestKeys;
+		{
+			Integer count = requestCountMap.get(requestPb);
+			if (count == 1) {
+				data = dataMap.remove(requestPb);
+				requestKeys = requestKeysMap.remove(requestPb);
+				requestCountMap.put(requestPb, 0);
+			} else {
+				data = dataMap.get(requestPb);
+				requestKeys = requestKeysMap.get(requestPb);
+				requestCountMap.put(requestPb, count - 1);
+			}
+		}
 		data.putAll(newMap);
 		responsePb.clearEntity();
 		for (Key key : requestKeys) {

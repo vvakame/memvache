@@ -5,6 +5,8 @@ import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementResponse;
+import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheDeleteRequest;
+import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheDeleteResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheGetRequest;
@@ -13,12 +15,15 @@ import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementRequ
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetResponse;
+import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheStatsRequest;
 import com.google.appengine.api.search.SearchServicePb.DeleteDocumentRequest;
 import com.google.appengine.api.search.SearchServicePb.DeleteDocumentResponse;
 import com.google.appengine.api.search.SearchServicePb.IndexDocumentRequest;
 import com.google.appengine.api.search.SearchServicePb.IndexDocumentResponse;
 import com.google.appengine.api.search.SearchServicePb.SearchRequest;
 import com.google.appengine.api.search.SearchServicePb.SearchResponse;
+import com.google.apphosting.api.DatastorePb.AllocateIdsRequest;
+import com.google.apphosting.api.DatastorePb.AllocateIdsResponse;
 import com.google.apphosting.api.DatastorePb.BeginTransactionRequest;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
@@ -37,7 +42,7 @@ import com.google.apphosting.api.DatastorePb.Transaction;
  * {@link #preProcess(String, String, byte[])} と {@link #postProcess(String, String, byte[], byte[])} が入り口。
  * @author vvakame
  */
-public class RpcVisitor implements Strategy {
+public abstract class RpcVisitor implements Strategy {
 
 	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
 
@@ -61,6 +66,10 @@ public class RpcVisitor implements Strategy {
 			BeginTransactionRequest requestPb = new BeginTransactionRequest();
 			requestPb.mergeFrom(request);
 			return pre_datastore_v3_BeginTransaction(requestPb);
+		} else if ("datastore_v3".equals(service) && "AllocateIds".equals(method)) {
+			AllocateIdsRequest requestPb = new AllocateIdsRequest();
+			requestPb.mergeFrom(request);
+			return pre_datastore_v3_AllocateIds(requestPb);
 		} else if ("datastore_v3".equals(service) && "Put".equals(method)) {
 			PutRequest requestPb = new PutRequest();
 			requestPb.mergeFrom(request);
@@ -103,6 +112,13 @@ public class RpcVisitor implements Strategy {
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
+		} else if ("memcache".equals(service) && "Delete".equals(method)) {
+			try {
+				MemcacheDeleteRequest requestPb = MemcacheDeleteRequest.parseFrom(request);
+				return pre_memcache_Delete(requestPb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
+			}
 		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
 			try {
 				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
@@ -122,6 +138,13 @@ public class RpcVisitor implements Strategy {
 			try {
 				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(request);
 				return pre_memcache_Increment(requestPb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
+			}
+		} else if ("memcache".equals(service) && "Stats".equals(method)) {
+			try {
+				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
+				return pre_memcache_Stats(requestPb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
@@ -173,6 +196,12 @@ public class RpcVisitor implements Strategy {
 			Transaction responsePb = new Transaction();
 			responsePb.mergeFrom(response);
 			return post_datastore_v3_BeginTransaction(requestPb, responsePb);
+		} else if ("datastore_v3".equals(service) && "AllocateIds".equals(method)) {
+			AllocateIdsRequest requestPb = new AllocateIdsRequest();
+			requestPb.mergeFrom(request);
+			AllocateIdsResponse responsePb = new AllocateIdsResponse();
+			responsePb.mergeFrom(response);
+			return post_datastore_v3_AllocateIds(requestPb, responsePb);
 		} else if ("datastore_v3".equals(service) && "Put".equals(method)) {
 			PutRequest requestPb = new PutRequest();
 			requestPb.mergeFrom(request);
@@ -231,6 +260,14 @@ public class RpcVisitor implements Strategy {
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
+		} else if ("memcache".equals(service) && "Delete".equals(method)) {
+			try {
+				MemcacheDeleteRequest requestPb = MemcacheDeleteRequest.parseFrom(request);
+				MemcacheDeleteResponse responsePb = MemcacheDeleteResponse.parseFrom(response);
+				return post_memcache_Delete(requestPb, responsePb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
+			}
 		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
 			try {
 				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
@@ -255,6 +292,14 @@ public class RpcVisitor implements Strategy {
 				MemcacheIncrementResponse responsePb =
 						MemcacheIncrementResponse.parseFrom(response);
 				return post_memcache_Increment(requestPb, responsePb);
+			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
+				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
+			}
+		} else if ("memcache".equals(service) && "Stats".equals(method)) {
+			try {
+				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
+				MemcacheSetResponse responsePb = MemcacheSetResponse.parseFrom(response);
+				return post_memcache_Stats(requestPb, responsePb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
@@ -308,6 +353,28 @@ public class RpcVisitor implements Strategy {
 	 */
 	public byte[] post_datastore_v3_BeginTransaction(BeginTransactionRequest requestPb,
 			Transaction responsePb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのAllocateIdsの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_datastore_v3_AllocateIds(AllocateIdsRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * DatastoreのAllocateIdsの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_datastore_v3_AllocateIds(AllocateIdsRequest requestPb,
+			AllocateIdsResponse responsePb) {
 		return null;
 	}
 
@@ -501,6 +568,28 @@ public class RpcVisitor implements Strategy {
 	}
 
 	/**
+	 * MemcacheのDeleteの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_memcache_Delete(MemcacheDeleteRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * MemcacheのDeleteの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_memcache_Delete(MemcacheDeleteRequest requestPb,
+			MemcacheDeleteResponse responsePb) {
+		return null;
+	}
+
+	/**
 	 * MemcacheのFlushAllの前処理を行う。
 	 * @param requestPb
 	 * @return 処理の返り値 or null
@@ -563,6 +652,27 @@ public class RpcVisitor implements Strategy {
 	 */
 	public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
 			MemcacheIncrementResponse responsePb) {
+		return null;
+	}
+
+	/**
+	 * MemcacheのStatsの前処理を行う。
+	 * @param requestPb
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public Pair<byte[], byte[]> pre_memcache_Stats(MemcacheStatsRequest requestPb) {
+		return null;
+	}
+
+	/**
+	 * MemcacheのStatsの後処理を行う。
+	 * @param requestPb
+	 * @param responsePb 
+	 * @return 処理の返り値 or null
+	 * @author vvakame
+	 */
+	public byte[] post_memcache_Stats(MemcacheStatsRequest requestPb, MemcacheSetResponse responsePb) {
 		return null;
 	}
 

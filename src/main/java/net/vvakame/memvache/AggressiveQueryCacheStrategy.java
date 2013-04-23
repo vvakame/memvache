@@ -25,7 +25,16 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
  * "Datastore への Query をまるごとキャッシュする" を実装するクラス。
  * @author vvakame
  */
-class AggressiveQueryCacheStrategy extends RpcVisitor {
+public class AggressiveQueryCacheStrategy extends RpcVisitor {
+
+	static final int PRIORITY = 1000;
+
+
+	@Override
+	public int getPriority() {
+		return PRIORITY;
+	}
+
 
 	final static Settings settings = Settings.getInstance();
 

@@ -231,8 +231,8 @@ public class AggressiveQueryCacheStrategyTest extends ControllerTestCase {
 		countDelegate = RpcCounterDelegate.install();
 
 		memvacheDelegate = MemvacheDelegate.install();
-		memvacheDelegate.strategies.clear();
-		memvacheDelegate.strategies.add(new AggressiveQueryCacheStrategy());
+		memvacheDelegate.strategies.get().clear();
+		memvacheDelegate.strategies.get().add(new AggressiveQueryCacheStrategy());
 	}
 
 	@Override
