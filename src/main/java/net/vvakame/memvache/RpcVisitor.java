@@ -16,12 +16,6 @@ import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementResp
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetRequest;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetResponse;
 import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheStatsRequest;
-import com.google.appengine.api.search.SearchServicePb.DeleteDocumentRequest;
-import com.google.appengine.api.search.SearchServicePb.DeleteDocumentResponse;
-import com.google.appengine.api.search.SearchServicePb.IndexDocumentRequest;
-import com.google.appengine.api.search.SearchServicePb.IndexDocumentResponse;
-import com.google.appengine.api.search.SearchServicePb.SearchRequest;
-import com.google.appengine.api.search.SearchServicePb.SearchResponse;
 import com.google.apphosting.api.DatastorePb.AllocateIdsRequest;
 import com.google.apphosting.api.DatastorePb.AllocateIdsResponse;
 import com.google.apphosting.api.DatastorePb.BeginTransactionRequest;
@@ -145,27 +139,6 @@ public abstract class RpcVisitor implements Strategy {
 			try {
 				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
 				return pre_memcache_Stats(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "IndexDocument".equals(method)) {
-			try {
-				IndexDocumentRequest requestPb = IndexDocumentRequest.parseFrom(request);
-				return pre_search_IndexDocument(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "Search".equals(method)) {
-			try {
-				SearchRequest requestPb = SearchRequest.parseFrom(request);
-				return pre_search_Search(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "DeleteDocument".equals(method)) {
-			try {
-				DeleteDocumentRequest requestPb = DeleteDocumentRequest.parseFrom(request);
-				return pre_search_DeleteDocument(requestPb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
 			}
@@ -300,30 +273,6 @@ public abstract class RpcVisitor implements Strategy {
 				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
 				MemcacheSetResponse responsePb = MemcacheSetResponse.parseFrom(response);
 				return post_memcache_Stats(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "IndexDocument".equals(method)) {
-			try {
-				IndexDocumentRequest requestPb = IndexDocumentRequest.parseFrom(request);
-				IndexDocumentResponse responsePb = IndexDocumentResponse.parseFrom(response);
-				return post_search_IndexDocument(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "Search".equals(method)) {
-			try {
-				SearchRequest requestPb = SearchRequest.parseFrom(request);
-				SearchResponse responsePb = SearchResponse.parseFrom(response);
-				return post_search_Search(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("search".equals(service) && "DeleteDocument".equals(method)) {
-			try {
-				DeleteDocumentRequest requestPb = DeleteDocumentRequest.parseFrom(request);
-				DeleteDocumentResponse responsePb = DeleteDocumentResponse.parseFrom(response);
-				return post_search_DeleteDocument(requestPb, responsePb);
 			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
 				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
 			}
@@ -673,71 +622,6 @@ public abstract class RpcVisitor implements Strategy {
 	 * @author vvakame
 	 */
 	public byte[] post_memcache_Stats(MemcacheStatsRequest requestPb, MemcacheSetResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのIndexDocumentの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_search_IndexDocument(IndexDocumentRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのIndexDocumentの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_search_IndexDocument(IndexDocumentRequest requestPb,
-			IndexDocumentResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのSearchの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_search_Search(SearchRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのSearchの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_search_Search(SearchRequest requestPb, SearchResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのDeleteDocumentの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_search_DeleteDocument(DeleteDocumentRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * Search APIのDeleteDocumentの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_search_DeleteDocument(DeleteDocumentRequest requestPb,
-			DeleteDocumentResponse responsePb) {
 		return null;
 	}
 }
