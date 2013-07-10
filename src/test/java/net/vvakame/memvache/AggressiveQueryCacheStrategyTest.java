@@ -213,6 +213,37 @@ public class AggressiveQueryCacheStrategyTest extends ControllerTestCase {
 	 * @author vvakame
 	 */
 	@Test
+	public void deleteCache() {
+		Entity parent = new Entity("parent", 1);
+		Datastore.put(parent);
+		for (int i = 1; i <= 2; i++) {
+			Entity child = new Entity("child", i, parent.getKey());
+			Datastore.put(child);
+			for (int j = 1; j <= 2; j++) {
+				Entity grandChild = new Entity("grandChild", i * 10 + j, child.getKey());
+				Datastore.put(grandChild);
+			}
+		}
+		Entity entity;
+		{
+			EntityQuery query = Datastore.query("child", parent.getKey());
+			entity = query.asEntityIterator().next();
+			assertThat(query.asEntityList().size(), is(2));
+			assertThat(Memcache.statistics().getItemCount(), is(3 /* Kind */+ 1L));
+		}
+		{
+			Datastore.delete(entity.getKey());
+			EntityQuery query = Datastore.query("child", parent.getKey());
+			assertThat(query.asEntityList().size(), is(1));
+			assertThat(Memcache.statistics().getItemCount(), is(3 /* kind */+ 2L));
+		}
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
 	public void prefetchSize() {
 		for (int i = 1; i <= 2; i++) {
 			Entity child = new Entity("kind", i);

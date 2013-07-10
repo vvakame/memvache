@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.NextRequest;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.Query;
@@ -126,6 +127,39 @@ public class AggressiveQueryCacheStrategy extends RpcVisitor {
 		}
 
 		return null;
+	}
+
+	@Override
+	public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
+
+		final MemcacheService memcache = MemvacheDelegate.getMemcache();
+		final Set<String> memcacheKeys = new HashSet<String>();
+
+		final StringBuilder builder = new StringBuilder();
+		for (Reference key : requestPb.mutableKeys()) {
+			final String namespace = key.getNameSpace();
+			final Path path = key.getPath();
+			// elements が並んでいるのは親Keyなどがある場合
+			// 配列の添字の若い方 = より祖先 末尾 = 本体 末尾のKindを見れば無視すべきかわかる
+			List<Element> elements = path.mutableElements();
+			Element element = elements.get(elements.size() - 1);
+			final String kind = element.getType();
+			if (isIgnoreKind(kind)) {
+				continue;
+			}
+
+			builder.setLength(0);
+			String memcacheKey = MemcacheKeyUtil.createKindKey(builder, namespace, kind);
+
+			memcacheKeys.add(memcacheKey);
+		}
+		// memcache.incrementAll(memcacheKeys, 1, 0L);
+		// broken method ↑
+		for (String key : memcacheKeys) {
+			memcache.increment(key, 1, 0L);
+		}
+
+		return super.pre_datastore_v3_Delete(requestPb);
 	}
 
 	/**
