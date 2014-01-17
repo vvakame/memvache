@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyTranslatorPublic;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
@@ -70,6 +71,8 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			for (Key key : all.keySet()) {
 				Entity entity = (Entity) all.get(key);
 				if (entity != null) {
+					Reference currentKey = KeyTranslatorPublic.convertToPb(key);
+					entity.getEntity().setKey(currentKey);
 					data.put(key, entity);
 				}
 			}
