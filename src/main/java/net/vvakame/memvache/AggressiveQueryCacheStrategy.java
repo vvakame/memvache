@@ -1,5 +1,7 @@
 package net.vvakame.memvache;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -9,6 +11,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
@@ -60,12 +64,29 @@ public class AggressiveQueryCacheStrategy extends RpcVisitor {
 		final MemcacheService memcache = MemvacheDelegate.getMemcache();
 		String memcacheKey = MemcacheKeyUtil.createQueryKey(memcache, requestPb);
 
-		QueryResult response = (QueryResult) memcache.get(memcacheKey);
-		if (response != null) {
-			return Pair.response(response.toByteArray());
-		} else {
+		byte[] data = (byte[]) memcache.get(memcacheKey);
+		if (data == null) {
 			return Pair.request(requestPb.toByteArray());
 		}
+
+		try {
+			GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(data));
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+			byte[] buffer = new byte[1024 * 1024];
+			int readSize;
+			while ((readSize = gis.read(buffer)) != -1) {
+				baos.write(buffer, 0, readSize);
+			}
+			baos.flush();
+
+			QueryResult response = new QueryResult();
+			response.mergeFrom(baos.toByteArray());
+			return Pair.response(response.toByteArray());
+		} catch (IOException e) {
+		}
+
+		return Pair.request(requestPb.toByteArray());
 	}
 
 	/**
@@ -86,7 +107,19 @@ public class AggressiveQueryCacheStrategy extends RpcVisitor {
 
 		// 最大5分しかキャッシュしないようにする
 		Expiration expiration = Expiration.byDeltaSeconds(settings.getExpireSecond());
-		memcache.put(memcacheKey, responsePb, expiration);
+
+		byte[] result = null;
+		try {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			GZIPOutputStream gos = new GZIPOutputStream(baos);
+			gos.write(responsePb.toByteArray());
+			gos.flush();
+			gos.finish();
+			result = baos.toByteArray();
+		} catch (IOException e) {
+		}
+
+		memcache.put(memcacheKey, result, expiration);
 		return null;
 	}
 

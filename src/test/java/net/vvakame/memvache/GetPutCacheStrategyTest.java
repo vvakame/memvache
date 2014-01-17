@@ -155,14 +155,17 @@ public class GetPutCacheStrategyTest extends ControllerTestCase {
 			Datastore.put(entity);
 		}
 
+		// #23 対応時に追加した
+		MemvacheDelegate.getMemcache().clearAll();
+
 		Map<String, Integer> countMap = countDelegate.countMap;
 		countMap.clear();
 
 		Datastore.get(key1, key2);
 
-		assertThat("あった", countMap.get("memcache@Get"), is(1));
 		assertThat("1つない", countMap.get("datastore_v3@Get"), is(1));
 		assertThat("1つ新規", countMap.get("memcache@Set"), is(1));
+		assertThat("あった", countMap.get("memcache@Get"), is(1));
 	}
 
 	/**
