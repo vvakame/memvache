@@ -198,6 +198,43 @@ public class GetPutCacheStrategyTest extends ControllerTestCase {
 		Datastore.getOrNull(key);
 	}
 
+	/**
+	 * PutResponseから生成したGetResponse相当データに食い違いがある。
+	 * https://github.com/vvakame/memvache/issues/24
+	 * @author vvakame
+	 * @throws EntityNotFoundException 
+	 */
+	@Test
+	public void fix_Issue24() throws EntityNotFoundException {
+		final DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		{ // Get (普通に動く) のデータをデバッガで見る
+			// ID未採番
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+
+			MemvacheDelegate.getMemcache().clearAll();
+
+			// GetResponse によるキャッシュを載せる
+			Key key = entity.getKey();
+			datastore.get(key);
+		}
+		{ // Put (動かない) のデータをデバッガで見る
+			// ID未採番
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+		}
+		{ // 例外が発生する操作
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+
+			Key key = entity.getKey();
+			datastore.get(key);
+		}
+	}
+
 	@Override
 	public void setUp() throws Exception {
 		super.setUp();

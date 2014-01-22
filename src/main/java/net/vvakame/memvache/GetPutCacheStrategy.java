@@ -178,7 +178,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
 			final long handle = tx.getHandle();
-			Map<Key, GetResponse.Entity> newMap = extractCache(requestPb, responsePb);
+			Map<Key, GetResponse.Entity> newMap = constructGetResponseEntity(requestPb, responsePb);
 			if (putUnderTx.containsKey(handle)) {
 				Map<Key, GetResponse.Entity> cached = putUnderTx.get(handle);
 				cached.putAll(newMap);
@@ -187,23 +187,29 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			}
 		} else {
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			Map<Key, GetResponse.Entity> newMap = extractCache(requestPb, responsePb);
+			Map<Key, GetResponse.Entity> newMap = constructGetResponseEntity(requestPb, responsePb);
 			memcache.putAll(newMap);
 		}
 		return null;
 	}
 
-	private Map<Key, GetResponse.Entity> extractCache(PutRequest requestPb, PutResponse responsePb) {
+	private Map<Key, GetResponse.Entity> constructGetResponseEntity(PutRequest requestPb,
+			PutResponse responsePb) {
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
 		for (int i = 0; i < size; i++) {
-			EntityProto proto = entitys.get(i);
 			Reference reference = responsePb.getKey(i);
 			Key key = PbKeyUtil.toKey(reference);
+
+			EntityProto proto = new EntityProto();
+			proto.mergeFrom(entitys.get(i));
+			proto.setEntityGroup(reference.getPath());
+			proto.setKey(reference);
+
 			GetResponse.Entity entity = new GetResponse.Entity();
 			entity.setEntity(proto);
-			entity.setKey(reference);
+
 			newMap.put(key, entity);
 		}
 		return newMap;
