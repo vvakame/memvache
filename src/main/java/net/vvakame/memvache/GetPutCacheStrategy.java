@@ -5,13 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyTranslatorPublic;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.GetRequest;
 import com.google.apphosting.api.DatastorePb.GetResponse;
-import com.google.apphosting.api.DatastorePb.GetResponse.Entity;
 import com.google.apphosting.api.DatastorePb.PutRequest;
 import com.google.apphosting.api.DatastorePb.PutResponse;
 import com.google.apphosting.api.DatastorePb.Transaction;
@@ -39,12 +37,14 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	Map<GetRequest, List<Key>> requestKeysMap = new HashMap<GetRequest, List<Key>>();
 
 	/** Memcacheが持っていたEntityのキャッシュ, リクエスト毎 */
-	Map<GetRequest, Map<Key, Entity>> dataMap = new HashMap<GetRequest, Map<Key, Entity>>();
+	Map<GetRequest, Map<Key, GetResponse.Entity>> dataMap =
+			new HashMap<GetRequest, Map<Key, GetResponse.Entity>>();
 
 	/** 同一操作を行ったカウント数, リクエスト毎 */
 	Map<GetRequest, Integer> requestCountMap = new HashMap<GetRequest, Integer>();
 
-	Map<Long, Map<Key, Entity>> putUnderTx = new HashMap<Long, Map<Key, Entity>>();
+	Map<Long, Map<Key, GetResponse.Entity>> putUnderTx =
+			new HashMap<Long, Map<Key, GetResponse.Entity>>();
 
 
 	/**
@@ -62,17 +62,15 @@ public class GetPutCacheStrategy extends RpcVisitor {
 		}
 
 		List<Key> requestKeys = PbKeyUtil.toKeys(requestPb.keys());
-		Map<Key, Entity> data = new HashMap<Key, Entity>();
+		Map<Key, GetResponse.Entity> data = new HashMap<Key, GetResponse.Entity>();
 
 		// Memcacheにあるものはキャッシュで済ませる
 		{
 			final MemcacheService memcache = MemvacheDelegate.getMemcache();
 			Map<Key, Object> all = memcache.getAll(requestKeys); // 存在しなかった場合Keyごと無い
 			for (Key key : all.keySet()) {
-				Entity entity = (Entity) all.get(key);
+				GetResponse.Entity entity = (GetResponse.Entity) all.get(key);
 				if (entity != null) {
-					Reference currentKey = KeyTranslatorPublic.convertToPb(key);
-					entity.getEntity().setKey(currentKey);
 					data.put(key, entity);
 				}
 			}
@@ -85,7 +83,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			responsePb.mutableEntitys();
 			responsePb.mutableDeferreds();
 			for (Key key : requestKeys) {
-				Entity entity = data.get(key);
+				GetResponse.Entity entity = data.get(key);
 				if (entity == null) {
 					data.remove(key);
 					continue;
@@ -135,20 +133,20 @@ public class GetPutCacheStrategy extends RpcVisitor {
 		}
 
 		// Memcacheに蓄える
-		Map<Key, Entity> newMap = new HashMap<Key, Entity>();
+		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		List<Reference> keys = requestPb.keys();
-		List<Entity> entitys = responsePb.entitys();
+		List<GetResponse.Entity> entitys = responsePb.entitys();
 
 		for (int i = 0; i < entitys.size(); i++) {
 			Key key = PbKeyUtil.toKey(keys.get(i));
-			Entity entity = entitys.get(i);
+			GetResponse.Entity entity = entitys.get(i);
 			newMap.put(key, entity);
 		}
 		MemcacheService memcache = MemvacheDelegate.getMemcache();
 		memcache.putAll(newMap);
 
 		// ここで取れてきているのはキャッシュにないヤツだけなので再構成して返す必要がある
-		Map<Key, Entity> data;
+		Map<Key, GetResponse.Entity> data;
 		List<Key> requestKeys;
 		{
 			Integer count = requestCountMap.get(requestPb);
@@ -180,30 +178,30 @@ public class GetPutCacheStrategy extends RpcVisitor {
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
 			final long handle = tx.getHandle();
-			Map<Key, Entity> newMap = extractCache(requestPb, responsePb);
+			Map<Key, GetResponse.Entity> newMap = extractCache(requestPb, responsePb);
 			if (putUnderTx.containsKey(handle)) {
-				Map<Key, Entity> cached = putUnderTx.get(handle);
+				Map<Key, GetResponse.Entity> cached = putUnderTx.get(handle);
 				cached.putAll(newMap);
 			} else {
 				putUnderTx.put(handle, newMap);
 			}
 		} else {
 			MemcacheService memcache = MemvacheDelegate.getMemcache();
-			Map<Key, Entity> newMap = extractCache(requestPb, responsePb);
+			Map<Key, GetResponse.Entity> newMap = extractCache(requestPb, responsePb);
 			memcache.putAll(newMap);
 		}
 		return null;
 	}
 
-	private Map<Key, Entity> extractCache(PutRequest requestPb, PutResponse responsePb) {
-		Map<Key, Entity> newMap = new HashMap<Key, Entity>();
+	private Map<Key, GetResponse.Entity> extractCache(PutRequest requestPb, PutResponse responsePb) {
+		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
 		for (int i = 0; i < size; i++) {
 			EntityProto proto = entitys.get(i);
 			Reference reference = responsePb.getKey(i);
 			Key key = PbKeyUtil.toKey(reference);
-			Entity entity = new Entity();
+			GetResponse.Entity entity = new GetResponse.Entity();
 			entity.setEntity(proto);
 			entity.setKey(reference);
 			newMap.put(key, entity);
@@ -230,7 +228,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
-			Map<Key, Entity> map = putUnderTx.get(handle);
+			Map<Key, GetResponse.Entity> map = putUnderTx.get(handle);
 			MemvacheDelegate.getMemcache().putAll(map);
 			return null;
 		} else {
