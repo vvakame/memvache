@@ -3,9 +3,13 @@ package net.vvakame.memvache;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+
+import org.slim3.repackaged.com.google.gdata.util.common.util.Base64;
 
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.repackaged.com.google.io.protocol.ProtocolMessage;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.GetRequest;
@@ -47,6 +51,34 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			new HashMap<Long, Map<Key, GetResponse.Entity>>();
 
 
+	static void dump(ProtocolMessage<?>... data) {
+		logger.info("===========================================================");
+		Logger logger = Logger.getLogger("memvache");
+		logger.info("debug Issue 24: call from " + getMethodName());
+		for (ProtocolMessage<?> d : data) {
+			logger.info("-----------------------------------------------------------");
+			logger.info("debug Issue 24: class=" + d.getClass().getCanonicalName());
+			logger.info("debug Issue 24: base64=" + Base64.encode(d.toByteArray()));
+			logger.info("debug Issue 24: xml=" + d.toString());
+		}
+		logger.info("-----------------------------------------------------------");
+	}
+
+	static String getMethodName() {
+		StackTraceElement[] stacks = Thread.currentThread().getStackTrace();
+
+		for (StackTraceElement stack : stacks) {
+			String stackClass = stack.getClassName();
+			if (stackClass.startsWith("net.vvakame")
+					&& !"getMethodName".equals(stack.getMethodName())
+					&& !"dump".equals(stack.getMethodName())) {
+				return stack.getMethodName();
+			}
+		}
+
+		return null;
+	}
+
 	/**
 	 * Getを行う前の動作として、Memcacheから解決できる要素について処理を行う。<br>
 	 * Memcacheからの不足分のみでリクエストを再構成する。<br>
@@ -55,6 +87,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Get(GetRequest requestPb) {
+		dump(requestPb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			// 操作するEGに対してマークを付けさせるためにDatastoreに素通しする必要がある。
@@ -127,6 +160,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
+		dump(requestPb, responsePb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			return null;
@@ -174,6 +208,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
+		dump(requestPb, responsePb);
 		Transaction tx = requestPb.getTransaction();
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
@@ -195,6 +230,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 
 	private Map<Key, GetResponse.Entity> constructGetResponseEntity(PutRequest requestPb,
 			PutResponse responsePb) {
+		dump(requestPb, responsePb);
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
@@ -220,6 +256,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
+		dump(requestPb);
 		List<Key> keys = PbKeyUtil.toKeys(requestPb.keys());
 		MemcacheService memcache = MemvacheDelegate.getMemcache();
 		memcache.deleteAll(keys);
@@ -232,6 +269,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
+		dump(requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			Map<Key, GetResponse.Entity> map = putUnderTx.get(handle);
@@ -247,6 +285,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
+		dump(requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			putUnderTx.remove(handle);
