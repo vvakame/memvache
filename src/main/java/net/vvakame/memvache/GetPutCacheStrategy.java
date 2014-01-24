@@ -5,10 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import org.slim3.repackaged.com.google.gdata.util.common.util.Base64;
-
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.repackaged.com.google.common.util.Base64;
 import com.google.appengine.repackaged.com.google.io.protocol.ProtocolMessage;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
