@@ -50,15 +50,16 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			new HashMap<Long, Map<Key, GetResponse.Entity>>();
 
 
-	static void dump(ProtocolMessage<?>... data) {
+	@SuppressWarnings("deprecation")
+	static void dump(String tag, ProtocolMessage<?>... data) {
 		logger.info("===========================================================");
 		Logger logger = Logger.getLogger("memvache");
-		logger.info("debug Issue 24: call from " + getMethodName());
+		logger.info("debug Issue 24: call from " + getMethodName() + " with " + tag);
 		for (ProtocolMessage<?> d : data) {
 			logger.info("-----------------------------------------------------------");
 			logger.info("debug Issue 24: class=" + d.getClass().getCanonicalName());
 			logger.info("debug Issue 24: base64=" + Base64.encode(d.toByteArray()));
-			logger.info("debug Issue 24: xml=" + d.toString());
+			logger.info("debug Issue 24: data=\n" + d.toString());
 		}
 		logger.info("-----------------------------------------------------------");
 	}
@@ -86,7 +87,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Get(GetRequest requestPb) {
-		dump(requestPb);
+		dump("original", requestPb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			// 操作するEGに対してマークを付けさせるためにDatastoreに素通しする必要がある。
@@ -123,6 +124,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 				responsePb.addEntity(entity);
 			}
 
+			dump("fully response reconstructed", responsePb);
 			return Pair.response(responsePb.toByteArray());
 		}
 
@@ -147,6 +149,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 				count += 1;
 			}
 			requestCountMap.put(reconstRequest, count);
+			dump("request reconstructed", reconstRequest);
 		}
 
 		return Pair.request(reconstructured);
@@ -159,7 +162,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
-		dump(requestPb, responsePb);
+		dump("original", requestPb, responsePb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			return null;
@@ -199,6 +202,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			responsePb.addEntity(data.get(key));
 		}
 
+		dump("response reconstructed", responsePb);
 		return responsePb.toByteArray();
 	}
 
@@ -207,7 +211,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
-		dump(requestPb, responsePb);
+		dump("original", requestPb, responsePb);
 		Transaction tx = requestPb.getTransaction();
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
@@ -229,7 +233,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 
 	private Map<Key, GetResponse.Entity> constructGetResponseEntity(PutRequest requestPb,
 			PutResponse responsePb) {
-		dump(requestPb, responsePb);
+		dump("original", requestPb, responsePb);
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
@@ -255,7 +259,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
-		dump(requestPb);
+		dump("original", requestPb);
 		List<Key> keys = PbKeyUtil.toKeys(requestPb.keys());
 		MemcacheService memcache = MemvacheDelegate.getMemcache();
 		memcache.deleteAll(keys);
@@ -268,7 +272,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
-		dump(requestPb, responsePb);
+		dump("original", requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			Map<Key, GetResponse.Entity> map = putUnderTx.get(handle);
@@ -284,7 +288,7 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
-		dump(requestPb, responsePb);
+		dump("original", requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			putUnderTx.remove(handle);
