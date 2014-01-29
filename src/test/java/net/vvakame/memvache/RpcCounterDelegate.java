@@ -16,10 +16,11 @@ import com.google.apphosting.api.ApiProxy.LogRecord;
  * RPCが発生した時の Serivice@Method の回数を保持する。
  * @author vvakame
  */
-class RpcCounterDelegate implements Delegate<Environment> {
+public class RpcCounterDelegate implements Delegate<Environment> {
 
 	Delegate<Environment> parent;
 
+	/** RPCアクセス回数を保存する. */
 	final public Map<String, Integer> countMap = new LinkedHashMap<String, Integer>() {
 
 		private static final long serialVersionUID = 1L;
@@ -37,6 +38,11 @@ class RpcCounterDelegate implements Delegate<Environment> {
 	};
 
 
+	/**
+	 * ApiProxyにセットする。
+	 * @return セットしたデリゲート
+	 * @author vvakame
+	 */
 	public static RpcCounterDelegate install() {
 		@SuppressWarnings("unchecked")
 		Delegate<Environment> originalDelegate = ApiProxy.getDelegate();
@@ -49,14 +55,28 @@ class RpcCounterDelegate implements Delegate<Environment> {
 		}
 	}
 
+	/**
+	 * 指定したデリゲートに戻す。
+	 * @param originalDelegate
+	 * @author vvakame
+	 */
 	public static void uninstall(Delegate<Environment> originalDelegate) {
 		ApiProxy.setDelegate(originalDelegate);
 	}
 
+	/**
+	 * 元々設定されていたデリゲートに戻す。
+	 * @author vvakame
+	 */
 	public void uninstall() {
 		ApiProxy.setDelegate(parent);
 	}
 
+	/**
+	 * the constructor.
+	 * @param parent
+	 * @category constructor
+	 */
 	public RpcCounterDelegate(Delegate<Environment> parent) {
 		this.parent = parent;
 	}
