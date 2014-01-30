@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyTranslatorPublic;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.repackaged.com.google.common.util.Base64;
 import com.google.appengine.repackaged.com.google.io.protocol.ProtocolMessage;
@@ -29,6 +30,9 @@ public class GetPutCacheStrategy extends RpcVisitor {
 
 	static final int PRIORITY = QueryKeysOnlyStrategy.PRIORITY + 1000;
 
+	static final Logger logger = Logger.getLogger("memvache-"
+			+ GetPutCacheStrategy.class.getSimpleName());
+
 
 	@Override
 	public int getPriority() {
@@ -49,11 +53,15 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	Map<Long, Map<Key, GetResponse.Entity>> putUnderTx =
 			new HashMap<Long, Map<Key, GetResponse.Entity>>();
 
+	static final boolean DEBUG = true;
+
 
 	@SuppressWarnings("deprecation")
 	static void dump(String tag, ProtocolMessage<?>... data) {
+		if (!DEBUG) {
+			return;
+		}
 		logger.info("===========================================================");
-		Logger logger = Logger.getLogger("memvache");
 		logger.info("debug Issue 24: call from " + getMethodName() + " with " + tag);
 		for (ProtocolMessage<?> d : data) {
 			logger.info("-----------------------------------------------------------");
@@ -101,26 +109,31 @@ public class GetPutCacheStrategy extends RpcVisitor {
 		{
 			final MemcacheService memcache = MemvacheDelegate.getMemcache();
 			Map<Key, Object> all = memcache.getAll(requestKeys); // 存在しなかった場合Keyごと無い
-			for (Key key : all.keySet()) {
+			for (Key key : requestKeys) {
 				GetResponse.Entity entity = (GetResponse.Entity) all.get(key);
-				if (entity != null) {
-					data.put(key, entity);
+				if (entity == null || !entity.hasEntity() || !entity.getEntity().hasKey()) {
+					continue;
 				}
+				Key cmpKey = KeyTranslatorPublic.createFromPb(entity.getEntity().getKey());
+				if (!key.equals(cmpKey)) {
+					// 指定と違うデータが取れることが…？
+					logger.warning("invalid state in pre_datastore_v3_Get about " + key.toString()
+							+ " - " + cmpKey);
+					continue;
+				}
+				data.put(key, entity);
 			}
 		}
 
 		// もし全部取れた場合は Get動作を行わず結果を構成して返す。
 		if (requestKeys.size() == data.size()) {
 			GetResponse responsePb = new GetResponse();
+			requestPb.setAllowDeferred(true);
 			// toByteArray() を呼んだ時にNPEが発生するのを抑制するために内部的に new ArrayList() させる
 			responsePb.mutableEntitys();
 			responsePb.mutableDeferreds();
 			for (Key key : requestKeys) {
 				GetResponse.Entity entity = data.get(key);
-				if (entity == null) {
-					data.remove(key);
-					continue;
-				}
 				responsePb.addEntity(entity);
 			}
 
@@ -170,14 +183,17 @@ public class GetPutCacheStrategy extends RpcVisitor {
 
 		// Memcacheに蓄える
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
-		List<Reference> keys = requestPb.keys();
 		List<GetResponse.Entity> entitys = responsePb.entitys();
-
-		for (int i = 0; i < entitys.size(); i++) {
-			Key key = PbKeyUtil.toKey(keys.get(i));
-			GetResponse.Entity entity = entitys.get(i);
+		for (GetResponse.Entity entity : entitys) {
+			Key key;
+			if (entity.hasEntity() && entity.getEntity().hasKey()) {
+				key = KeyTranslatorPublic.createFromPb(entity.getEntity().getKey());
+			} else {
+				key = KeyTranslatorPublic.createFromPb(entity.getKey());
+			}
 			newMap.put(key, entity);
 		}
+
 		MemcacheService memcache = MemvacheDelegate.getMemcache();
 		memcache.putAll(newMap);
 
@@ -235,14 +251,14 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			PutResponse responsePb) {
 		dump("original", requestPb, responsePb);
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
-		int size = requestPb.entitySize();
+		final int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
 		for (int i = 0; i < size; i++) {
 			Reference reference = responsePb.getKey(i);
 			Key key = PbKeyUtil.toKey(reference);
 
 			EntityProto proto = new EntityProto();
-			proto.mergeFrom(entitys.get(i));
+			proto.mergeFrom(entitys.get(i)); // PutResponseはKeyだけ返ってくるので順番を基準に判断するしかない
 			proto.setEntityGroup(reference.getPath());
 			proto.setKey(reference);
 

@@ -37,7 +37,7 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 		}
 		final String str = builder.toString();
 		final byte[] data = new byte[100 * 1024];
-		for (int i = 1; i <= 300; i++) {
+		for (int i = 1; i <= 200; i++) {
 			TestKind model = new TestKind();
 			model.setKey(Datastore.createKey(meta, i));
 			model.setStr(str);
@@ -50,7 +50,7 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 		Memcache.cleanAll();
 
 		List<TestKind> list = Datastore.query(meta).prefetchSize(20).asList();
-		assertThat(list.size(), is(300));
+		assertThat(list.size(), is(200));
 	}
 
 	/**
