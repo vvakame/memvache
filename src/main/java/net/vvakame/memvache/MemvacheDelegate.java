@@ -46,10 +46,8 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 
 	static void staticInitialize() {
 		enabledStrategies.clear();
-		addStrategy(AggressiveQueryCacheStrategy.class);
 		addStrategy(QueryKeysOnlyStrategy.class);
 		addStrategy(GetPutCacheStrategy.class);
-		RpcVisitor.debug = false;
 	}
 
 	/**
@@ -109,7 +107,7 @@ public class MemvacheDelegate implements ApiProxy.Delegate<Environment> {
 	static void setupStrategies(MemvacheDelegate memvache) {
 		List<Strategy> strategies = memvache.strategies.get();
 		if (strategies == null) {
-			strategies = new ArrayList<Strategy>(3);
+			strategies = new ArrayList<Strategy>(2);
 			memvache.strategies.set(strategies);
 		} else {
 			strategies.clear();

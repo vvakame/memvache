@@ -1,21 +1,7 @@
 package net.vvakame.memvache;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheDeleteRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheDeleteResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheGetRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheGetResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheStatsRequest;
 import com.google.apphosting.api.DatastorePb.AllocateIdsRequest;
 import com.google.apphosting.api.DatastorePb.AllocateIdsResponse;
 import com.google.apphosting.api.DatastorePb.BeginTransactionRequest;
@@ -39,8 +25,6 @@ import com.google.apphosting.api.DatastorePb.Transaction;
 public abstract class RpcVisitor implements Strategy {
 
 	static final Logger logger = Logger.getLogger(RpcVisitor.class.getName());
-
-	static boolean debug = false;
 
 
 	/**
@@ -92,58 +76,6 @@ public abstract class RpcVisitor implements Strategy {
 			Transaction requestPb = new Transaction();
 			requestPb.mergeFrom(request);
 			return pre_datastore_v3_Rollback(requestPb);
-		} else if ("memcache".equals(service) && "Set".equals(method)) {
-			try {
-				MemcacheSetRequest requestPb = MemcacheSetRequest.parseFrom(request);
-				return pre_memcache_Set(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Get".equals(method)) {
-			try {
-				MemcacheGetRequest requestPb = MemcacheGetRequest.parseFrom(request);
-				return pre_memcache_Get(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Delete".equals(method)) {
-			try {
-				MemcacheDeleteRequest requestPb = MemcacheDeleteRequest.parseFrom(request);
-				return pre_memcache_Delete(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
-			try {
-				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
-				return pre_memcache_FlushAll(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "BatchIncrement".equals(method)) {
-			try {
-				MemcacheBatchIncrementRequest requestPb =
-						MemcacheBatchIncrementRequest.parseFrom(request);
-				return pre_memcache_BatchIncrement(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Increment".equals(method)) {
-			try {
-				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(request);
-				return pre_memcache_Increment(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Stats".equals(method)) {
-			try {
-				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
-				return pre_memcache_Stats(requestPb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				throw new IllegalStateException("raise exception at " + service + ", " + method, e);
-			}
-		} else if (debug) {
-			logger.info("unknown service=" + service + ", method=" + method);
 		}
 
 		return null;
@@ -217,67 +149,6 @@ public abstract class RpcVisitor implements Strategy {
 			CommitResponse responsePb = new CommitResponse();
 			responsePb.mergeFrom(response);
 			return post_datastore_v3_Rollback(requestPb, responsePb);
-		} else if ("memcache".equals(service) && "Set".equals(method)) {
-			try {
-				MemcacheSetRequest requestPb = MemcacheSetRequest.parseFrom(request);
-				MemcacheSetResponse responsePb = MemcacheSetResponse.parseFrom(response);
-				return post_memcache_Set(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Get".equals(method)) {
-			try {
-				MemcacheGetRequest requestPb = MemcacheGetRequest.parseFrom(request);
-				MemcacheGetResponse responsePb = MemcacheGetResponse.parseFrom(response);
-				return post_memcache_Get(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Delete".equals(method)) {
-			try {
-				MemcacheDeleteRequest requestPb = MemcacheDeleteRequest.parseFrom(request);
-				MemcacheDeleteResponse responsePb = MemcacheDeleteResponse.parseFrom(response);
-				return post_memcache_Delete(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "FlushAll".equals(method)) {
-			try {
-				MemcacheFlushRequest requestPb = MemcacheFlushRequest.parseFrom(request);
-				MemcacheFlushResponse responsePb = MemcacheFlushResponse.parseFrom(response);
-				return post_memcache_FlushAll(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "BatchIncrement".equals(method)) {
-			try {
-				MemcacheBatchIncrementRequest requestPb =
-						MemcacheBatchIncrementRequest.parseFrom(request);
-				MemcacheBatchIncrementResponse responsePb =
-						MemcacheBatchIncrementResponse.parseFrom(response);
-				return post_memcache_BatchIncrement(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Increment".equals(method)) {
-			try {
-				MemcacheIncrementRequest requestPb = MemcacheIncrementRequest.parseFrom(request);
-				MemcacheIncrementResponse responsePb =
-						MemcacheIncrementResponse.parseFrom(response);
-				return post_memcache_Increment(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if ("memcache".equals(service) && "Stats".equals(method)) {
-			try {
-				MemcacheStatsRequest requestPb = MemcacheStatsRequest.parseFrom(request);
-				MemcacheSetResponse responsePb = MemcacheSetResponse.parseFrom(response);
-				return post_memcache_Stats(requestPb, responsePb);
-			} catch (com.google.appengine.repackaged.com.google.protobuf.InvalidProtocolBufferException e) {
-				logger.log(Level.WARNING, "raise exception at " + service + ", " + method, e);
-			}
-		} else if (debug) {
-			logger.info("unknown service=" + service + ", method=" + method);
 		}
 
 		return null;
@@ -471,157 +342,6 @@ public abstract class RpcVisitor implements Strategy {
 	 * @author vvakame
 	 */
 	public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのSetの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_Set(MemcacheSetRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのSetの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_Set(MemcacheSetRequest requestPb, MemcacheSetResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのGetの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_Get(MemcacheGetRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのGetの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_Get(MemcacheGetRequest requestPb, MemcacheGetResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのDeleteの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_Delete(MemcacheDeleteRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのDeleteの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_Delete(MemcacheDeleteRequest requestPb,
-			MemcacheDeleteResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのFlushAllの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのFlushAllの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_FlushAll(MemcacheFlushRequest requestPb,
-			MemcacheFlushResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのBatchIncrementの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのBatchIncrementの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
-			MemcacheBatchIncrementResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのIncrementの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのIncrementの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
-			MemcacheIncrementResponse responsePb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのStatsの前処理を行う。
-	 * @param requestPb
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public Pair<byte[], byte[]> pre_memcache_Stats(MemcacheStatsRequest requestPb) {
-		return null;
-	}
-
-	/**
-	 * MemcacheのStatsの後処理を行う。
-	 * @param requestPb
-	 * @param responsePb 
-	 * @return 処理の返り値 or null
-	 * @author vvakame
-	 */
-	public byte[] post_memcache_Stats(MemcacheStatsRequest requestPb, MemcacheSetResponse responsePb) {
 		return null;
 	}
 }

@@ -24,7 +24,7 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
  */
 public class QueryKeysOnlyStrategy extends RpcVisitor {
 
-	static final int PRIORITY = AggressiveQueryCacheStrategy.PRIORITY + 1000;
+	static final int PRIORITY = 0;
 
 
 	@Override
@@ -104,6 +104,7 @@ public class QueryKeysOnlyStrategy extends RpcVisitor {
 	 * keysOnlyのQueryResultに肉付けをする処理
 	 * @param responsePb
 	 */
+	@SuppressWarnings("unchecked")
 	void reconstructQueryResult(QueryResult responsePb) {
 
 		// 検索結果(KeysOnly)
@@ -119,11 +120,9 @@ public class QueryKeysOnlyStrategy extends RpcVisitor {
 		}
 
 		// MemcacheからEntity部分を取得
-		Map<Key, DatastorePb.GetResponse.Entity> cached;
-		{
-			Map<Key, Object> all = MemvacheDelegate.getMemcache().getAll(keys);
-			cached = MemcacheKeyUtil.conv(all);
-		}
+		Map<Key, DatastorePb.GetResponse.Entity> cached =
+				(Map<Key, DatastorePb.GetResponse.Entity>) (Object) MemvacheDelegate.getMemcache()
+					.getAll(keys);
 
 		// Memcacheから取得できなかった部分をBatchGet
 		Map<Key, Entity> batchGet = null;

@@ -4,16 +4,6 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheBatchIncrementResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheFlushResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheGetRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheGetResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheIncrementResponse;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetRequest;
-import com.google.appengine.api.memcache.MemcacheServicePb.MemcacheSetResponse;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.ApiConfig;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
@@ -229,70 +219,6 @@ public class DebugDelegate implements Delegate<Environment> {
 		public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
 			logger.info(responsePb.toString());
 			return super.post_datastore_v3_Rollback(requestPb, responsePb);
-		}
-
-		@Override
-		public Pair<byte[], byte[]> pre_memcache_Set(MemcacheSetRequest requestPb) {
-			logger.info(requestPb.toString());
-			return super.pre_memcache_Set(requestPb);
-		}
-
-		@Override
-		public byte[] post_memcache_Set(MemcacheSetRequest requestPb, MemcacheSetResponse responsePb) {
-			logger.info(responsePb.toString());
-			return super.post_memcache_Set(requestPb, responsePb);
-		}
-
-		@Override
-		public Pair<byte[], byte[]> pre_memcache_Get(MemcacheGetRequest requestPb) {
-			logger.info(requestPb.toString());
-			return super.pre_memcache_Get(requestPb);
-		}
-
-		@Override
-		public byte[] post_memcache_Get(MemcacheGetRequest requestPb, MemcacheGetResponse responsePb) {
-			logger.info(responsePb.toString());
-			return super.post_memcache_Get(requestPb, responsePb);
-		}
-
-		@Override
-		public Pair<byte[], byte[]> pre_memcache_FlushAll(MemcacheFlushRequest requestPb) {
-			logger.info(requestPb.toString());
-			return super.pre_memcache_FlushAll(requestPb);
-		}
-
-		@Override
-		public byte[] post_memcache_FlushAll(MemcacheFlushRequest requestPb,
-				MemcacheFlushResponse responsePb) {
-			logger.info(responsePb.toString());
-			return super.post_memcache_FlushAll(requestPb, responsePb);
-		}
-
-		@Override
-		public Pair<byte[], byte[]> pre_memcache_BatchIncrement(
-				MemcacheBatchIncrementRequest requestPb) {
-			logger.info(requestPb.toString());
-			return super.pre_memcache_BatchIncrement(requestPb);
-		}
-
-		@Override
-		public byte[] post_memcache_BatchIncrement(MemcacheBatchIncrementRequest requestPb,
-				MemcacheBatchIncrementResponse responsePb) {
-			logger.info(responsePb.toString());
-			return super.post_memcache_BatchIncrement(requestPb, responsePb);
-		}
-
-		@Override
-		public Pair<byte[], byte[]> pre_memcache_Increment(MemcacheIncrementRequest requestPb) {
-			logger.info(requestPb.toString());
-			return super.pre_memcache_Increment(requestPb);
-		}
-
-		@Override
-		public byte[] post_memcache_Increment(MemcacheIncrementRequest requestPb,
-				MemcacheIncrementResponse responsePb) {
-			logger.info(responsePb.toString());
-			return super.post_memcache_Increment(requestPb, responsePb);
 		}
 
 		@Override

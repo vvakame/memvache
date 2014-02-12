@@ -12,13 +12,9 @@ class PbKeyUtil {
 	public static List<Key> toKeys(List<Reference> keys) {
 		List<Key> rowKeys = new ArrayList<Key>();
 		for (Reference reference : keys) {
-			rowKeys.add(toKey(reference));
+			rowKeys.add(KeyTranslatorPublic.createFromPb(reference));
 		}
 
 		return rowKeys;
-	}
-
-	public static Key toKey(Reference reference) {
-		return KeyTranslatorPublic.createFromPb(reference);
 	}
 }

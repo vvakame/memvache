@@ -22,48 +22,6 @@ public class MemvacheFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig filterConfig) {
-		boolean enableGetPutCache = true;
-		boolean enableQueryKeysOnly = true;
-		boolean enableAggressiveQueryCache = false;
-
-		boolean debug = false;
-
-		try {
-			String getPutCache = filterConfig.getInitParameter("enableGetPutCacheStrategy");
-			if (!isEmpty(getPutCache)) {
-				enableGetPutCache = Boolean.valueOf(getPutCache);
-			}
-			String queryKeysOnly = filterConfig.getInitParameter("enableQueryKeysOnlyStrategy");
-			if (!isEmpty(queryKeysOnly)) {
-				enableQueryKeysOnly = Boolean.valueOf(queryKeysOnly);
-			}
-			String aggressiveQueryCache =
-					filterConfig.getInitParameter("enableAggressiveQueryCacheStrategy");
-			if (!isEmpty(aggressiveQueryCache)) {
-				enableAggressiveQueryCache = Boolean.valueOf(aggressiveQueryCache);
-			}
-			String debugMode = filterConfig.getInitParameter("enableDebugMode");
-			if (!isEmpty(debugMode)) {
-				debug = Boolean.valueOf(debugMode);
-			}
-		} catch (Exception e) {
-		}
-		if (enableGetPutCache) {
-			MemvacheDelegate.addStrategy(GetPutCacheStrategy.class);
-		} else {
-			MemvacheDelegate.removeStrategy(GetPutCacheStrategy.class);
-		}
-		if (enableQueryKeysOnly) {
-			MemvacheDelegate.addStrategy(QueryKeysOnlyStrategy.class);
-		} else {
-			MemvacheDelegate.removeStrategy(QueryKeysOnlyStrategy.class);
-		}
-		if (enableAggressiveQueryCache) {
-			MemvacheDelegate.addStrategy(AggressiveQueryCacheStrategy.class);
-		} else {
-			MemvacheDelegate.removeStrategy(AggressiveQueryCacheStrategy.class);
-		}
-		RpcVisitor.debug = debug;
 	}
 
 	@Override
@@ -73,7 +31,6 @@ public class MemvacheFilter implements Filter {
 		MemvacheDelegate delegate = null;
 		try {
 			delegate = MemvacheDelegate.install();
-			preProcess(delegate);
 		} catch (Throwable th) {
 			logger.log(Level.INFO, "failed to create api call log.");
 		} finally {
@@ -90,9 +47,6 @@ public class MemvacheFilter implements Filter {
 		}
 	}
 
-	protected void preProcess(MemvacheDelegate delegate) {
-	}
-
 	void doThrow(Throwable th) throws IOException, ServletException {
 		if (th instanceof ServletException) {
 			throw (ServletException) th;
@@ -105,9 +59,5 @@ public class MemvacheFilter implements Filter {
 
 	@Override
 	public void destroy() {
-	}
-
-	static boolean isEmpty(String str) {
-		return str == null || "".equals(str);
 	}
 }

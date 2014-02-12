@@ -37,7 +37,7 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 		}
 		final String str = builder.toString();
 		final byte[] data = new byte[100 * 1024];
-		for (int i = 1; i <= 200; i++) {
+		for (int i = 1; i <= 150; i++) {
 			TestKind model = new TestKind();
 			model.setKey(Datastore.createKey(meta, i));
 			model.setStr(str);
@@ -50,7 +50,7 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 		Memcache.cleanAll();
 
 		List<TestKind> list = Datastore.query(meta).prefetchSize(20).asList();
-		assertThat(list.size(), is(200));
+		assertThat(list.size(), is(150));
 	}
 
 	/**
@@ -63,15 +63,13 @@ public class MemvacheDelegateTest extends AppEngineTestCase {
 
 		MemvacheDelegate.enabledStrategies.clear();
 		MemvacheDelegate.addStrategy(QueryKeysOnlyStrategy.class);
-		MemvacheDelegate.addStrategy(AggressiveQueryCacheStrategy.class);
 		MemvacheDelegate.addStrategy(GetPutCacheStrategy.class);
 
 		memvacheDelegate = MemvacheDelegate.install();
 
 		List<Strategy> strategies = memvacheDelegate.strategies.get();
-		assertThat(strategies.get(0), instanceOf(AggressiveQueryCacheStrategy.class));
-		assertThat(strategies.get(1), instanceOf(QueryKeysOnlyStrategy.class));
-		assertThat(strategies.get(2), instanceOf(GetPutCacheStrategy.class));
+		assertThat(strategies.get(0), instanceOf(QueryKeysOnlyStrategy.class));
+		assertThat(strategies.get(1), instanceOf(GetPutCacheStrategy.class));
 	}
 
 	@Override

@@ -3,13 +3,10 @@ package net.vvakame.memvache;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyTranslatorPublic;
 import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.repackaged.com.google.common.util.Base64;
-import com.google.appengine.repackaged.com.google.io.protocol.ProtocolMessage;
 import com.google.apphosting.api.DatastorePb.CommitResponse;
 import com.google.apphosting.api.DatastorePb.DeleteRequest;
 import com.google.apphosting.api.DatastorePb.GetRequest;
@@ -29,9 +26,6 @@ import com.google.storage.onestore.v3.OnestoreEntity.Reference;
 public class GetPutCacheStrategy extends RpcVisitor {
 
 	static final int PRIORITY = QueryKeysOnlyStrategy.PRIORITY + 1000;
-
-	static final Logger logger = Logger.getLogger("memvache-"
-			+ GetPutCacheStrategy.class.getSimpleName());
 
 
 	@Override
@@ -53,39 +47,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	Map<Long, Map<Key, GetResponse.Entity>> putUnderTx =
 			new HashMap<Long, Map<Key, GetResponse.Entity>>();
 
-	static final boolean DEBUG = true;
-
-
-	@SuppressWarnings("deprecation")
-	static void dump(String tag, ProtocolMessage<?>... data) {
-		if (!DEBUG) {
-			return;
-		}
-		logger.info("===========================================================");
-		logger.info("debug Issue 24: call from " + getMethodName() + " with " + tag);
-		for (ProtocolMessage<?> d : data) {
-			logger.info("-----------------------------------------------------------");
-			logger.info("debug Issue 24: class=" + d.getClass().getCanonicalName());
-			logger.info("debug Issue 24: base64=" + Base64.encode(d.toByteArray()));
-			logger.info("debug Issue 24: data=\n" + d.toString());
-		}
-		logger.info("-----------------------------------------------------------");
-	}
-
-	static String getMethodName() {
-		StackTraceElement[] stacks = Thread.currentThread().getStackTrace();
-
-		for (StackTraceElement stack : stacks) {
-			String stackClass = stack.getClassName();
-			if (stackClass.startsWith("net.vvakame")
-					&& !"getMethodName".equals(stack.getMethodName())
-					&& !"dump".equals(stack.getMethodName())) {
-				return stack.getMethodName();
-			}
-		}
-
-		return null;
-	}
 
 	/**
 	 * Getを行う前の動作として、Memcacheから解決できる要素について処理を行う。<br>
@@ -95,7 +56,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Get(GetRequest requestPb) {
-		dump("original", requestPb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			// 操作するEGに対してマークを付けさせるためにDatastoreに素通しする必要がある。
@@ -137,7 +97,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 				responsePb.addEntity(entity);
 			}
 
-			dump("fully response reconstructed", responsePb);
 			return Pair.response(responsePb.toByteArray());
 		}
 
@@ -162,7 +121,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 				count += 1;
 			}
 			requestCountMap.put(reconstRequest, count);
-			dump("request reconstructed", reconstRequest);
 		}
 
 		return Pair.request(reconstructured);
@@ -175,7 +133,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Get(GetRequest requestPb, GetResponse responsePb) {
-		dump("original", requestPb, responsePb);
 		if (requestPb.getTransaction().hasApp()) {
 			// under transaction
 			return null;
@@ -218,7 +175,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 			responsePb.addEntity(data.get(key));
 		}
 
-		dump("response reconstructed", responsePb);
 		return responsePb.toByteArray();
 	}
 
@@ -227,7 +183,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Put(PutRequest requestPb, PutResponse responsePb) {
-		dump("original", requestPb, responsePb);
 		Transaction tx = requestPb.getTransaction();
 		if (tx.hasApp()) {
 			// Tx下の場合はDatastoreに反映されるまで、ローカル変数に結果を保持しておく。
@@ -249,13 +204,12 @@ public class GetPutCacheStrategy extends RpcVisitor {
 
 	private Map<Key, GetResponse.Entity> constructGetResponseEntity(PutRequest requestPb,
 			PutResponse responsePb) {
-		dump("original", requestPb, responsePb);
 		Map<Key, GetResponse.Entity> newMap = new HashMap<Key, GetResponse.Entity>();
 		final int size = requestPb.entitySize();
 		List<EntityProto> entitys = requestPb.entitys();
 		for (int i = 0; i < size; i++) {
 			Reference reference = responsePb.getKey(i);
-			Key key = PbKeyUtil.toKey(reference);
+			Key key = KeyTranslatorPublic.createFromPb(reference);
 
 			EntityProto proto = new EntityProto();
 			proto.mergeFrom(entitys.get(i)); // PutResponseはKeyだけ返ってくるので順番を基準に判断するしかない
@@ -275,7 +229,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public Pair<byte[], byte[]> pre_datastore_v3_Delete(DeleteRequest requestPb) {
-		dump("original", requestPb);
 		List<Key> keys = PbKeyUtil.toKeys(requestPb.keys());
 		MemcacheService memcache = MemvacheDelegate.getMemcache();
 		memcache.deleteAll(keys);
@@ -288,7 +241,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Commit(Transaction requestPb, CommitResponse responsePb) {
-		dump("original", requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			Map<Key, GetResponse.Entity> map = putUnderTx.get(handle);
@@ -304,7 +256,6 @@ public class GetPutCacheStrategy extends RpcVisitor {
 	 */
 	@Override
 	public byte[] post_datastore_v3_Rollback(Transaction requestPb, CommitResponse responsePb) {
-		dump("original", requestPb, responsePb);
 		final long handle = requestPb.getHandle();
 		if (putUnderTx.containsKey(handle)) {
 			putUnderTx.remove(handle);
