@@ -1,0 +1,270 @@
+package net.vvakame.memvache;
+
+import java.util.Map;
+
+import org.junit.Test;
+import org.slim3.datastore.Datastore;
+import org.slim3.memcache.Memcache;
+import org.slim3.tester.ControllerTestCase;
+
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.EntityNotFoundException;
+import com.google.appengine.api.datastore.EntityTranslatorPublic;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.Transaction;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.apphosting.api.DatastorePb;
+import com.google.storage.onestore.v3.OnestoreEntity.EntityProto;
+
+import static org.hamcrest.CoreMatchers.*;
+
+import static org.junit.Assert.*;
+
+/**
+ * {@link GetPutCacheStrategy} のテストケース。
+ * @author vvakame
+ */
+public class SafetyGetCacheStrategyTest extends ControllerTestCase {
+
+	MemvacheDelegate memvacheDelegate;
+
+	RpcCounterDelegate countDelegate;
+
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 * @throws EntityNotFoundException 
+	 */
+	@Test
+	public void put_notAllocatedId() throws EntityNotFoundException {
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		Entity entity = new Entity("hoge");
+		datastore.put(entity);
+
+		Key key = entity.getKey();
+		datastore.get(key);
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void put() {
+		Entity entity = new Entity("hoge", 1);
+		Datastore.put(entity);
+
+		assertThat("Putではキャッシュされない", Memcache.statistics().getItemCount(), is(0L));
+
+		Datastore.get(entity.getKey());
+
+		assertThat("Getでキャッシュされる", Memcache.statistics().getItemCount(), is(1L));
+
+		Datastore.put(entity);
+
+		assertThat("Putでキャッシュがクリアされる", Memcache.statistics().getItemCount(), is(0L));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void put_withTx_withCommit() {
+		Entity entity = new Entity("hoge", 1);
+		Datastore.put(entity);
+
+		// Tx下でGet
+		Transaction tx = Datastore.beginTransaction();
+		Datastore.get(entity.getKey());
+
+		assertThat("Tx下Getはキャッシュされない", Memcache.statistics().getItemCount(), is(0L));
+
+		Datastore.put(entity);
+
+		assertThat("キャッシュ消える", Memcache.statistics().getItemCount(), is(0L));
+
+		Datastore.getWithoutTx(entity.getKey());
+
+		assertThat("とりあえずキャッシュされる", Memcache.statistics().getItemCount(), is(1L));
+
+		tx.commit();
+
+		assertThat("キャッシュ消える", Memcache.statistics().getItemCount(), is(0L));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void put_withTx_withRollback() {
+		Transaction tx = Datastore.beginTransaction();
+		Datastore.put(new Entity("hoge", 1));
+
+		assertThat("Tx下なので0", Memcache.statistics().getItemCount(), is(0L));
+
+		tx.rollback();
+
+		assertThat("なかったことに", Memcache.statistics().getItemCount(), is(0L));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void get_existsAllCache() {
+		Key key;
+		{
+			Entity entity = new Entity("hoge", 1);
+			entity.setProperty("v1", 1);
+			MemcacheService memcache = MemvacheDelegate.getMemcache();
+			key = entity.getKey();
+			EntityProto proto = EntityTranslatorPublic.convertToPb(entity);
+			DatastorePb.GetResponse.Entity en = new DatastorePb.GetResponse.Entity();
+			en.setEntity(proto);
+			memcache.put(key, en);
+		}
+
+		Map<String, Integer> countMap = countDelegate.countMap;
+		countMap.clear();
+
+		Datastore.get(key);
+
+		assertThat("あった", countMap.get("memcache@Get"), is(1));
+		assertThat("あった", countMap.get("datastore_v3@Get"), is(0));
+		assertThat("GetしてないのでSetなし", countMap.get("memcache@Set"), is(0));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void get_existsDefectCache() {
+		Key key1;
+		{
+			Entity entity = new Entity("hoge", 1);
+			entity.setProperty("v1", 1);
+			MemcacheService memcache = MemvacheDelegate.getMemcache();
+			key1 = entity.getKey();
+			EntityProto entityProto = EntityTranslatorPublic.convertToPb(entity);
+			com.google.apphosting.api.DatastorePb.GetResponse.Entity en =
+					new DatastorePb.GetResponse.Entity();
+			en.setEntity(entityProto);
+			memcache.put(key1, en);
+		}
+
+		Key key2;
+		{
+			Entity entity = new Entity("hoge", 1);
+			entity.setProperty("v1", 1);
+			key2 = entity.getKey();
+			Datastore.put(entity);
+		}
+
+		// #23 対応時に追加した
+		MemvacheDelegate.getMemcache().clearAll();
+
+		Map<String, Integer> countMap = countDelegate.countMap;
+		countMap.clear();
+
+		Datastore.get(key1, key2);
+
+		assertThat("1つない", countMap.get("datastore_v3@Get"), is(1));
+		assertThat("1つ新規", countMap.get("memcache@Set"), is(1));
+		assertThat("あった", countMap.get("memcache@Get"), is(1));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void delete() {
+		Entity entity = new Entity("hoge", 1);
+		Datastore.put(entity);
+		Datastore.get(entity.getKey());
+
+		assertThat(Memcache.statistics().getItemCount(), is(1L));
+
+		Datastore.delete(entity.getKey());
+
+		assertThat(Memcache.statistics().getItemCount(), is(0L));
+	}
+
+	/**
+	 * テストケース。
+	 * @author vvakame
+	 */
+	@Test
+	public void run_RPCs() {
+		Key key = Datastore.createKey("hoge", 20);
+		Entity entity = new Entity(key);
+		Datastore.put(entity);
+		Datastore.get(key);
+		Datastore.delete(key);
+		Datastore.getOrNull(key);
+	}
+
+	/**
+	 * PutResponseから生成したGetResponse相当データに食い違いがある。
+	 * https://github.com/vvakame/memvache/issues/24
+	 * @author vvakame
+	 * @throws EntityNotFoundException 
+	 */
+	@Test
+	public void fix_Issue24() throws EntityNotFoundException {
+		final DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		{ // Get (普通に動く) のデータをデバッガで見る
+			// ID未採番
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+
+			MemvacheDelegate.getMemcache().clearAll();
+
+			// GetResponse によるキャッシュを載せる
+			Key key = entity.getKey();
+			datastore.get(key);
+		}
+		{ // Put (動かない) のデータをデバッガで見る
+			// ID未採番
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+		}
+		{ // 例外が発生する操作
+			Entity entity = new Entity("hoge");
+			entity.setProperty("str", "！すでのな");
+			datastore.put(entity);
+
+			Key key = entity.getKey();
+			datastore.get(key);
+		}
+	}
+
+	@Override
+	public void setUp() throws Exception {
+		super.setUp();
+
+		// かならず RpcCounterDelegate が最初
+		countDelegate = RpcCounterDelegate.install();
+
+		memvacheDelegate = MemvacheDelegate.install();
+		memvacheDelegate.strategies.get().clear();
+		memvacheDelegate.strategies.get().add(new SafetyGetCacheStrategy());
+	}
+
+	@Override
+	public void tearDown() throws Exception {
+		memvacheDelegate.uninstall();
+		countDelegate.uninstall();
+
+		super.tearDown();
+	}
+}
