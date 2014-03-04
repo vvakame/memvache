@@ -22,7 +22,8 @@ public class MemvacheFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig filterConfig) {
-		boolean enableGetPutCache = true;
+		boolean enableGetPutCache = false;
+		boolean enableSafetyGetCache = true;
 		boolean enableQueryKeysOnly = true;
 		boolean enableAggressiveQueryCache = false;
 
@@ -32,6 +33,10 @@ public class MemvacheFilter implements Filter {
 			String getPutCache = filterConfig.getInitParameter("enableGetPutCacheStrategy");
 			if (!isEmpty(getPutCache)) {
 				enableGetPutCache = Boolean.valueOf(getPutCache);
+			}
+			String safetyGetCache = filterConfig.getInitParameter("enableSafetyGetCacheStrategy");
+			if (!isEmpty(safetyGetCache)) {
+				enableSafetyGetCache = Boolean.valueOf(safetyGetCache);
 			}
 			String queryKeysOnly = filterConfig.getInitParameter("enableQueryKeysOnlyStrategy");
 			if (!isEmpty(queryKeysOnly)) {
@@ -48,10 +53,19 @@ public class MemvacheFilter implements Filter {
 			}
 		} catch (Exception e) {
 		}
+		if (enableGetPutCache && enableSafetyGetCache) {
+			enableGetPutCache = false;
+			logger.warning("Conflicting settings: enableGetPutCache disabled.");
+		}
 		if (enableGetPutCache) {
 			MemvacheDelegate.addStrategy(GetPutCacheStrategy.class);
 		} else {
 			MemvacheDelegate.removeStrategy(GetPutCacheStrategy.class);
+		}
+		if (enableSafetyGetCache) {
+			MemvacheDelegate.addStrategy(SafetyGetCacheStrategy.class);
+		} else {
+			MemvacheDelegate.removeStrategy(SafetyGetCacheStrategy.class);
 		}
 		if (enableQueryKeysOnly) {
 			MemvacheDelegate.addStrategy(QueryKeysOnlyStrategy.class);

@@ -37,7 +37,7 @@ public class MemvacheFilterTest {
 		ArrayList<Class<? extends Strategy>> strategyList =
 				new ArrayList<Class<? extends Strategy>>(strategies);
 		assertThat(strategyList.get(0).newInstance(), instanceOf(QueryKeysOnlyStrategy.class));
-		assertThat(strategyList.get(1).newInstance(), instanceOf(GetPutCacheStrategy.class));
+		assertThat(strategyList.get(1).newInstance(), instanceOf(SafetyGetCacheStrategy.class));
 		assertThat(RpcVisitor.debug, is(false));
 	}
 
@@ -53,6 +53,7 @@ public class MemvacheFilterTest {
 		MockServletContext servletContext = new MockServletContext();
 		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
 		filterConfig.setInitParameter("enableGetPutCacheStrategy", "false");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "false");
 		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "false");
 		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "false");
 		filter.init(filterConfig);
@@ -73,6 +74,7 @@ public class MemvacheFilterTest {
 		MockServletContext servletContext = new MockServletContext();
 		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
 		filterConfig.setInitParameter("enableGetPutCacheStrategy", "true");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "false");
 		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "false");
 		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "false");
 		filter.init(filterConfig);
@@ -91,12 +93,64 @@ public class MemvacheFilterTest {
 	 * @author vvakame
 	 */
 	@Test
+	public void enableSafetyGetCacheStrategy() throws Exception {
+		MemvacheFilter filter = new MemvacheFilter();
+
+		MockServletContext servletContext = new MockServletContext();
+		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
+		filterConfig.setInitParameter("enableGetPutCacheStrategy", "false");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "true");
+		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "false");
+		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "false");
+		filter.init(filterConfig);
+
+		Set<Class<? extends Strategy>> strategies = MemvacheDelegate.enabledStrategies;
+		assertThat("default", strategies.size(), is(1));
+
+		ArrayList<Class<? extends Strategy>> strategyList =
+				new ArrayList<Class<? extends Strategy>>(strategies);
+		assertThat(strategyList.get(0).newInstance(), instanceOf(SafetyGetCacheStrategy.class));
+	}
+
+	/**
+	 * ストラテジ1件。
+	 * @throws Exception
+	 * @author vvakame
+	 */
+	@Test
+	public void collisionEnableGetPutCacheStrategyAndEnableSafetyGetCacheStrategy()
+			throws Exception {
+		MemvacheFilter filter = new MemvacheFilter();
+
+		MockServletContext servletContext = new MockServletContext();
+		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
+		filterConfig.setInitParameter("enableGetPutCacheStrategy", "true");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "true");
+		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "false");
+		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "false");
+		filter.init(filterConfig);
+
+		Set<Class<? extends Strategy>> strategies = MemvacheDelegate.enabledStrategies;
+		assertThat("default", strategies.size(), is(1));
+
+		ArrayList<Class<? extends Strategy>> strategyList =
+				new ArrayList<Class<? extends Strategy>>(strategies);
+		assertThat(strategyList.get(0).newInstance(), instanceOf(SafetyGetCacheStrategy.class));
+	}
+
+	/**
+	 * ストラテジ1件。
+	 * @throws Exception
+	 * @author vvakame
+	 */
+	@Test
 	public void enableQueryKeysOnlyStrategy() throws Exception {
 		MemvacheFilter filter = new MemvacheFilter();
 
 		MockServletContext servletContext = new MockServletContext();
 		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
 		filterConfig.setInitParameter("enableGetPutCacheStrategy", "false");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "false");
 		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "true");
 		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "false");
 		filter.init(filterConfig);
@@ -121,6 +175,7 @@ public class MemvacheFilterTest {
 		MockServletContext servletContext = new MockServletContext();
 		MockFilterConfig filterConfig = new MockFilterConfig(servletContext);
 		filterConfig.setInitParameter("enableGetPutCacheStrategy", "false");
+		filterConfig.setInitParameter("enableSafetyGetCacheStrategy", "false");
 		filterConfig.setInitParameter("enableQueryKeysOnlyStrategy", "false");
 		filterConfig.setInitParameter("enableAggressiveQueryCacheStrategy", "true");
 		filter.init(filterConfig);
